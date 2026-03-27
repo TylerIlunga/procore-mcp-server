@@ -1,0 +1,23 @@
+{
+  "name": "procore-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server exposing the full Procore REST API for Claude Desktop and Claude Code",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "generate": "tsx scripts/generate-catalog.ts && tsx scripts/generate-tools-manifest.ts",
+    "validate": "tsx scripts/validate-catalog.ts",
+    "build": "npm run generate && npm run validate && tsc",
+    "start": "node dist/src/index.js",
+    "auth": "tsx src/auth/setup.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.0.0"
+  }
+}

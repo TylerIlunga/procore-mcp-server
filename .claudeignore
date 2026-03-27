@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+
+# Build output
+dist/
+build/
+.next/
+out/
+
+# Version control
+.git/
+
+# Test coverage
+coverage/
+.nyc_output/
+htmlcov/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Generated docs (fetched, not authored)
+docs/generated/
+
+# IDE files
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Misc
+*.tsbuildinfo
+.turbo

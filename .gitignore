@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Build
+dist/
+build/
+.next/
+out/
+*.egg-info/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test coverage
+coverage/
+.nyc_output/
+htmlcov/
+
+# Misc
+*.tsbuildinfo
+.vercel
+.turbo
+
+# MCP config (contains secrets)
+.mcp.json
+
+# Procore MCP specific
+specs/combined_OAS.json
+data/catalog.json
+data/categories.json
+data/endpoint-details/
+data/tools-manifest.json
