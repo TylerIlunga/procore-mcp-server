@@ -72,6 +72,8 @@ interface ToolManifestEntry {
   bodyWrapper?: string; // e.g., "rfi" for {rfi: {...}}
 }
 
+const MAX_TOOL_NAME_LENGTH = 64;
+
 // Convert OAS summary to a clean snake_case tool name
 function summaryToToolName(
   summary: string,
@@ -113,7 +115,19 @@ function summaryToToolName(
     name = `${name}_${vSuffix}`;
   }
 
-  return name;
+  return truncateToolName(name);
+}
+
+// Truncate tool name to MAX_TOOL_NAME_LENGTH, cutting at word boundary
+function truncateToolName(name: string): string {
+  if (name.length <= MAX_TOOL_NAME_LENGTH) return name;
+  // Cut at last underscore before the limit
+  const truncated = name.slice(0, MAX_TOOL_NAME_LENGTH);
+  const lastUnderscore = truncated.lastIndexOf("_");
+  if (lastUnderscore > MAX_TOOL_NAME_LENGTH / 2) {
+    return truncated.slice(0, lastUnderscore);
+  }
+  return truncated;
 }
 
 function mapOasTypeToSimple(schema: Record<string, unknown>): string {
@@ -307,7 +321,7 @@ function main() {
         newName = newName + "_" + (i + 1);
       }
 
-      e.toolName = newName;
+      e.toolName = truncateToolName(newName);
     }
   }
 
@@ -316,7 +330,7 @@ function main() {
   for (const entry of manifest) {
     const count = finalNames.get(entry.toolName) || 0;
     if (count > 0) {
-      entry.toolName = entry.toolName + "_" + (count + 1);
+      entry.toolName = truncateToolName(entry.toolName + "_" + (count + 1));
     }
     finalNames.set(entry.toolName, count + 1);
   }
