@@ -1,6 +1,6 @@
 # Procore MCP Server
 
-> MCP server exposing the full Procore REST API (1,743 endpoints) for Claude Desktop and Claude Code. Single-user OAuth. TypeScript + @modelcontextprotocol/sdk.
+> MCP server exposing the full Procore REST API for Claude Desktop and Claude Code. Single-user OAuth. TypeScript + @modelcontextprotocol/sdk.
 
 ## Quick Start
 
@@ -13,7 +13,7 @@ npm start              # Start MCP server (stdio transport)
 
 ## Architecture
 
-**7 MCP tools** provide full coverage of 1,743 Procore API endpoints:
+**7 MCP tools** provide full coverage of Procore API endpoints:
 
 | Tool | Purpose |
 |------|---------|
@@ -27,7 +27,7 @@ npm start              # Start MCP server (stdio transport)
 
 ### Build Pipeline
 
-`specs/combined_OAS.json` (41MB) → `scripts/generate-catalog.ts` → `data/catalog.json` + `data/endpoint-details/`
+`specs/combined_OAS.json` (41MB) -> `scripts/generate-catalog.ts` -> `data/catalog.json` + `data/endpoint-details/`
 
 ### Key Directories
 
@@ -43,15 +43,15 @@ npm start              # Start MCP server (stdio transport)
 
 ### Auth Flow
 
-1. Run `npm run auth` → opens browser → Procore OAuth → tokens saved to `~/.procore-mcp/tokens.json`
+1. Run `npm run auth` -> opens browser -> Procore OAuth -> tokens saved to `~/.procore-mcp/tokens.json`
 2. MCP server reads tokens on startup, auto-refreshes when expired
 
 ### Environment Variables
 
 ```
-PROCORE_CLIENT_ID     — OAuth client ID from Procore Developer Portal
-PROCORE_CLIENT_SECRET — OAuth client secret
-PROCORE_COMPANY_ID    — Default Procore company ID (integer)
+PROCORE_CLIENT_ID     - OAuth client ID from Procore Developer Portal
+PROCORE_CLIENT_SECRET - OAuth client secret
+PROCORE_COMPANY_ID    - Default Procore company ID (integer)
 ```
 
 ## Coding Conventions

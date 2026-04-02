@@ -48,6 +48,10 @@ htmlcov/
 # MCP config (contains secrets)
 .mcp.json
 
+# Claude Code local settings
+.claude/
+.claudeignore
+
 # Procore MCP specific
 specs/combined_OAS.json
 data/catalog.json

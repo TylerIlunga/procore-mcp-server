@@ -1,135 +1,133 @@
-# Agent Starter
+# Procore MCP Server
 
-A starter repository template for building software with AI coding agents (Claude Code, Codex, etc.).
+MCP server that exposes the full [Procore](https://www.procore.com/) REST API to AI assistants like Claude. Built with TypeScript and the [Model Context Protocol SDK](https://github.com/modelcontextprotocol/typescript-sdk).
 
-Based on the principles from [Harness Engineering: Leveraging Codex in an Agent-First World](https://openai.com/index/harness-engineering/) — adapted for Claude Code with skills, subagents, and structured documentation.
+Works with **Claude Desktop**, **Claude Code**, and any MCP-compatible client.
 
-## Philosophy
+## What it does
 
-**Humans steer. Agents execute.**
+A build-time parser converts Procore's OpenAPI spec into a compact catalog, then auto-generates individual MCP tools for every API operation. At runtime, 7 meta-tools let the AI discover and call any Procore endpoint:
 
-This repo provides the scaffolding that makes agents effective:
-- **Structured knowledge base** — the repo is the system of record, not Slack or Google Docs
-- **Progressive disclosure** — CLAUDE.md is a map (~100 lines), not a 1,000-page manual
-- **Mechanical enforcement** — architecture rules, quality checks, and doc validation run automatically
-- **Layered architecture** — strict boundaries + local autonomy
-- **Continuous garbage collection** — recurring quality scans prevent drift
+| Tool | Purpose |
+|------|---------|
+| `procore_discover_categories` | List API categories with endpoint counts |
+| `procore_discover_endpoints` | List endpoints in a category |
+| `procore_search_endpoints` | Full-text search across all endpoints |
+| `procore_get_endpoint_details` | Get full parameter schema for an endpoint |
+| `procore_api_call` | Execute any Procore API call |
+| `procore_get_config` | Show current config and auth status |
+| `procore_set_config` | Set runtime config (company_id, project_id) |
 
-## Quick Start
+## Prerequisites
+
+- Node.js 18+
+- A [Procore Developer Portal](https://developers.procore.com/) account
+- An OAuth app with **Authorization Code** grant type
+- Set your redirect URI to `http://localhost:9876/callback`
+
+## Setup
 
 ```bash
-# Clone the starter
-git clone <this-repo-url> my-project
-cd my-project
-
-# Run setup with your project info
-./scripts/setup.sh "My Project" "web app" "Next.js, TypeScript, Tailwind"
-
-# Initialize git
-git add -A && git commit -m "Initial scaffold from agent-starter"
+git clone https://github.com/beaubits/procore-mcp-server.git
+cd procore-mcp-server
+npm install
 ```
 
-## What's Included
+Copy the example env file and fill in your credentials:
+
+```bash
+cp .env.example .env
+```
+
+```env
+PROCORE_CLIENT_ID=your_client_id
+PROCORE_CLIENT_SECRET=your_client_secret
+PROCORE_COMPANY_ID=your_company_id
+```
+
+You'll need Procore's OpenAPI spec file placed at `specs/combined_OAS.json`. This file is not included in the repo due to its size (~41MB). You can obtain it from [Procore's API documentation](https://developers.procore.com/).
+
+Build the catalog and compile TypeScript:
+
+```bash
+npm run build
+```
+
+Authenticate with Procore (opens browser for OAuth):
+
+```bash
+npm run auth
+```
+
+Start the server:
+
+```bash
+npm start
+```
+
+## Claude Desktop configuration
+
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "procore": {
+      "command": "node",
+      "args": ["/absolute/path/to/procore-mcp-server/dist/src/index.js"],
+      "env": {
+        "PROCORE_CLIENT_ID": "your_client_id",
+        "PROCORE_CLIENT_SECRET": "your_client_secret",
+        "PROCORE_COMPANY_ID": "your_company_id"
+      }
+    }
+  }
+}
+```
+
+## Claude Code configuration
+
+Add to `.mcp.json` in your project root:
+
+```json
+{
+  "mcpServers": {
+    "procore": {
+      "command": "node",
+      "args": ["/absolute/path/to/procore-mcp-server/dist/src/index.js"],
+      "env": {
+        "PROCORE_CLIENT_ID": "your_client_id",
+        "PROCORE_CLIENT_SECRET": "your_client_secret",
+        "PROCORE_COMPANY_ID": "your_company_id"
+      }
+    }
+  }
+}
+```
+
+## Project structure
 
 ```
-CLAUDE.md                    # Agent entry point (map, not manual)
-AGENTS.md                    # Codex compatibility (points to CLAUDE.md)
-ARCHITECTURE.md              # System structure, domains, layer rules
-
-docs/
-  DESIGN.md                  # Design system and UI conventions
-  QUALITY.md                 # Quality scorecard per domain
-  PLANS.md                   # Active plans index
-  RELIABILITY.md             # Error handling, logging, observability
-  SECURITY.md                # Auth, validation, secrets
-  PRODUCT.md                 # Product context, user journeys, glossary
-  design-docs/
-    index.md                 # Design decision index
-    core-beliefs.md          # Foundational engineering principles
-  exec-plans/
-    TEMPLATE.md              # Plan template
-    tech-debt-tracker.md     # Tech debt tracking
-    active/                  # In-progress plans
-    completed/               # Finished plans
-  product-specs/
-    index.md                 # Feature spec index
-  references/                # Bundled external docs for agent context
-  generated/                 # Auto-generated docs (DB schemas, etc.)
-
+src/
+  auth/       OAuth token exchange, refresh, storage
+  api/        HTTP client with auth, rate limits, retries
+  catalog/    Endpoint catalog loading, search, filtering
+  tools/      MCP tool handlers and registration
 scripts/
-  setup.sh                   # One-time project setup
-  quality-scan.sh            # Code quality checks
-  doc-check.sh               # Documentation structure validation
-  arch-lint.sh               # Architecture layer enforcement
-
-.claude/
-  settings.json              # Claude Code project permissions
-  skills/
-    review.md                # Self-review checklist
-    plan.md                  # Execution plan creation
-    cleanup.md               # Codebase garbage collection
-    add-feature.md           # Feature implementation workflow
-    fix-bug.md               # Bug fix workflow
-
-.github/workflows/
-  ci.yml                     # CI pipeline (quality + tests)
-  doc-gardening.yml          # Weekly doc freshness check
+  generate-catalog.ts          Parse OAS into catalog
+  generate-tools-manifest.ts   Generate per-endpoint MCP tools
+  validate-catalog.ts          Validate catalog integrity
+data/         Build output (gitignored): catalog.json, endpoint details
+specs/        Source OAS file (gitignored)
 ```
 
-## Key Principles
+## How it works
 
-1. **Repository = system of record.** If it's not committed, agents can't see it.
-2. **Map, not manual.** CLAUDE.md stays ~100 lines. Details live in linked docs.
-3. **Enforce boundaries, allow autonomy.** Strict layers + freedom within them.
-4. **Parse at the boundary.** Validate external data at edges. Trust internal types.
-5. **Boring tech wins.** Composable, stable, well-documented dependencies.
-6. **Fix the environment, not the symptom.** Agent struggling? Add context or tooling, don't retry.
-7. **Continuous garbage collection.** Small, frequent cleanups beat painful rewrites.
+1. **Build time**: `scripts/generate-catalog.ts` parses the 41MB Procore OpenAPI spec and produces a compact `data/catalog.json` plus individual endpoint detail files in `data/endpoint-details/`. `scripts/generate-tools-manifest.ts` then generates a tools manifest with one named MCP tool per API operation.
 
-## Customization Guide
+2. **Auth**: Run `npm run auth` once to complete the OAuth flow in your browser. Tokens are saved to `~/.procore-mcp/tokens.json` and auto-refresh when expired.
 
-### After Cloning
-
-1. **CLAUDE.md** — Fill in project name, type, stack, and customize quick-start commands
-2. **ARCHITECTURE.md** — Define your actual system architecture and domains
-3. **docs/PRODUCT.md** — Write your product context, user personas, and glossary
-4. **docs/DESIGN.md** — Set your design tokens and component conventions
-5. **.github/workflows/ci.yml** — Uncomment and configure the test/build jobs for your stack
-6. **scripts/arch-lint.sh** — Adjust layer names and import patterns for your language
-
-### Adding External Reference Docs
-
-Bundle external documentation for agent context in `docs/references/`:
-```bash
-# Example: fetch llms.txt for a dependency
-curl -o docs/references/supabase-llms.txt https://supabase.com/llms.txt
-```
-
-### Creating Domain Modules
-
-Follow the layered architecture:
-```bash
-mkdir -p src/domains/users/{ui}
-touch src/domains/users/{types,config,repository,service}.ts
-touch src/domains/users/ui/index.ts
-```
-
-## Workflows
-
-### Adding a Feature
-```
-Read the spec -> Plan -> Types -> Config -> Repo -> Service -> UI -> Test -> Review -> PR
-```
-
-### Fixing a Bug
-```
-Reproduce -> Diagnose root cause -> Write failing test -> Fix -> Verify -> PR
-```
-
-### Weekly Maintenance
-```
-Run quality scan -> Fix issues -> Update quality scorecard -> Review tech debt tracker
-```
+3. **Runtime**: The MCP server loads the catalog and registers all tools. When an AI assistant calls a tool, the server maps it to the correct Procore API endpoint, injects auth headers, handles rate limits and pagination, and returns the response.
 
 ## License
 
