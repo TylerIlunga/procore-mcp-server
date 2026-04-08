@@ -23,12 +23,12 @@ A build-time parser converts Procore's OpenAPI spec into a compact catalog, then
 - Node.js 18+
 - A [Procore Developer Portal](https://developers.procore.com/) account
 - An OAuth app with **Authorization Code** grant type
-- Set your redirect URI to `http://localhost:9876/callback`
+- Set your redirect URI to `http://localhost`
 
 ## Setup
 
 ```bash
-git clone https://github.com/beaubits/procore-mcp-server.git
+git clone https://github.com/TylerIlunga/procore-mcp-server.git
 cd procore-mcp-server
 npm install
 ```

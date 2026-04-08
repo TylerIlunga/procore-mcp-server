@@ -2,6 +2,20 @@
   "name": "procore-mcp-server",
   "version": "1.0.0",
   "description": "MCP server exposing the full Procore REST API for Claude Desktop and Claude Code",
+  "author": "Tyler Ilunga",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TylerIlunga/procore-mcp-server.git"
+  },
+  "keywords": [
+    "mcp",
+    "procore",
+    "claude",
+    "model-context-protocol",
+    "construction",
+    "api"
+  ],
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
