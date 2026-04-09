@@ -129,6 +129,10 @@ specs/        Source OAS file (gitignored)
 
 3. **Runtime**: The MCP server loads the catalog and registers all tools. When an AI assistant calls a tool, the server maps it to the correct Procore API endpoint, injects auth headers, handles rate limits and pagination, and returns the response.
 
+## Inspiration
+
+Built to help my girlfriend, a construction engineer who uses Procore daily.
+
 ## License
 
 MIT
