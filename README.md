@@ -1,5 +1,7 @@
 # Procore MCP Server
 
+[![procore-mcp-server MCP server](https://glama.ai/mcp/servers/TylerIlunga/procore-mcp-server/badges/card.svg)](https://glama.ai/mcp/servers/TylerIlunga/procore-mcp-server)
+
 MCP server that exposes the full [Procore](https://www.procore.com/) REST API to AI assistants like Claude. Built with TypeScript and the [Model Context Protocol SDK](https://github.com/modelcontextprotocol/typescript-sdk).
 
 Works with **Claude Desktop**, **Claude Code**, and any MCP-compatible client.
