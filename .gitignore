@@ -54,7 +54,3 @@ htmlcov/
 
 # Procore MCP specific
 specs/combined_OAS.json
-data/catalog.json
-data/categories.json
-data/endpoint-details/
-data/tools-manifest.json
