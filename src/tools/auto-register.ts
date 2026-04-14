@@ -8,6 +8,7 @@ import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { procoreApiCall } from "../api/client.js";
+import { buildDescription, enrichParamDescription } from "./description-builder.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MANIFEST_PATH = join(__dirname, "..", "..", "..", "data", "tools-manifest.json");
@@ -36,30 +37,31 @@ interface ToolManifestEntry {
   bodyWrapper?: string;
 }
 
-function buildZodType(param: ToolParam): z.ZodTypeAny {
+function buildZodType(param: ToolParam, moduleName: string): z.ZodTypeAny {
+  const desc = enrichParamDescription(param.name, param.description, moduleName);
   let zodType: z.ZodTypeAny;
 
   switch (param.type) {
     case "number":
-      zodType = z.number().describe(param.description);
+      zodType = z.number().describe(desc);
       break;
     case "boolean":
-      zodType = z.boolean().describe(param.description);
+      zodType = z.boolean().describe(desc);
       break;
     case "array":
-      zodType = z.array(z.unknown()).describe(param.description);
+      zodType = z.array(z.unknown()).describe(desc);
       break;
     case "object":
-      zodType = z.record(z.unknown()).describe(param.description);
+      zodType = z.record(z.unknown()).describe(desc);
       break;
     default:
       if (param.enum && param.enum.length > 0 && param.enum.length <= 20) {
         const enumValues = param.enum.map(String);
         zodType = z
           .enum(enumValues as [string, ...string[]])
-          .describe(param.description);
+          .describe(desc);
       } else {
-        zodType = z.string().describe(param.description);
+        zodType = z.string().describe(desc);
       }
   }
 
@@ -72,7 +74,6 @@ function buildZodType(param: ToolParam): z.ZodTypeAny {
 
 function createToolHandler(entry: ToolManifestEntry) {
   return async (args: Record<string, unknown>) => {
-    // Split args into path params, query params, and body params
     const pathParams: Record<string, string> = {};
     const queryParams: Record<string, string | number | boolean> = {};
     const bodyObj: Record<string, unknown> = {};
@@ -94,14 +95,9 @@ function createToolHandler(entry: ToolManifestEntry) {
       }
     }
 
-    // Reconstruct body wrapper if needed
     let body: Record<string, unknown> | undefined;
     if (Object.keys(bodyObj).length > 0) {
-      if (entry.bodyWrapper) {
-        body = { [entry.bodyWrapper]: bodyObj };
-      } else {
-        body = bodyObj;
-      }
+      body = entry.bodyWrapper ? { [entry.bodyWrapper]: bodyObj } : bodyObj;
     }
 
     try {
@@ -115,12 +111,11 @@ function createToolHandler(entry: ToolManifestEntry) {
       });
 
       const parts: string[] = [];
-
-      if (response.status >= 200 && response.status < 300) {
-        parts.push(`Status: ${response.status} OK`);
-      } else {
-        parts.push(`Status: ${response.status}`);
-      }
+      parts.push(
+        response.status >= 200 && response.status < 300
+          ? `Status: ${response.status} OK`
+          : `Status: ${response.status}`
+      );
 
       const dataStr = JSON.stringify(response.data, null, 2);
       if (dataStr.length > 50000) {
@@ -133,9 +128,7 @@ function createToolHandler(entry: ToolManifestEntry) {
 
       if (response.pagination) {
         const p = response.pagination;
-        parts.push(
-          `\nPagination: page ${p.current_page}, ${p.per_page}/page`
-        );
+        parts.push(`\nPagination: page ${p.current_page}, ${p.per_page}/page`);
         if (p.total !== undefined) parts.push(`Total: ${p.total}`);
         if (p.has_next)
           parts.push(`More pages available — use page=${p.current_page + 1}`);
@@ -151,10 +144,7 @@ function createToolHandler(entry: ToolManifestEntry) {
     } catch (err) {
       return {
         content: [
-          {
-            type: "text" as const,
-            text: `Error: ${(err as Error).message}`,
-          },
+          { type: "text" as const, text: `Error: ${(err as Error).message}` },
         ],
         isError: true,
       };
@@ -166,7 +156,7 @@ export function registerAutoTools(server: McpServer): number {
   let manifest: ToolManifestEntry[];
   try {
     manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"));
-  } catch (err) {
+  } catch {
     console.error(
       "Failed to load tools manifest. Run 'npm run generate' first."
     );
@@ -175,49 +165,43 @@ export function registerAutoTools(server: McpServer): number {
 
   let registered = 0;
   for (const entry of manifest) {
-    // Build Zod schema for this tool's params
     const shape: ZodRawShape = {};
 
-    // Limit params to avoid excessively large schemas
     // Include all path params (required) + first 30 query/body params
     const pathP = entry.params.filter((p) => p.source === "path");
     const otherP = entry.params.filter((p) => p.source !== "path");
     const selectedParams = [...pathP, ...otherP.slice(0, 30)];
 
     for (const param of selectedParams) {
-      // Sanitize param name for Zod (replace brackets, dots, etc.)
       const safeName = param.name
         .replace(/\[/g, "__")
         .replace(/\]/g, "")
         .replace(/\./g, "_");
-      shape[safeName] = buildZodType({
-        ...param,
-        name: safeName,
-      });
+      shape[safeName] = buildZodType(
+        { ...param, name: safeName },
+        entry.module
+      );
     }
 
-    // Add pagination params for GET endpoints
     if (entry.method === "GET") {
       if (!shape.page) {
-        shape.page = z.number().optional().describe("Page number for pagination");
+        shape.page = z
+          .number()
+          .optional()
+          .describe("Page number for paginated results (default: 1)");
       }
       if (!shape.per_page) {
         shape.per_page = z
           .number()
           .optional()
-          .describe("Items per page (max 100)");
+          .describe("Number of items per page (default: 100, max: 100)");
       }
     }
 
-    const description = `${entry.summary}. [${entry.category}/${entry.module}] ${entry.method} ${entry.path}`;
+    const description = buildDescription(entry);
 
     try {
-      server.tool(
-        entry.toolName,
-        description.slice(0, 500),
-        shape,
-        createToolHandler(entry)
-      );
+      server.tool(entry.toolName, description, shape, createToolHandler(entry));
       registered++;
     } catch (err) {
       console.error(
