@@ -137,9 +137,15 @@ h1{margin:0 0 .5rem}p{color:#999;margin:0}</style></head>
     console.log(`Callback server listening on port ${PORT}`);
     console.log(`Opening browser to authorize...\n`);
 
-    // Open browser (macOS)
+    // Open browser (cross-platform)
     import("child_process").then(({ exec }) => {
-      exec(`open "${authUrl}"`);
+      const opener =
+        process.platform === "win32"
+          ? `start "" "${authUrl}"`
+          : process.platform === "darwin"
+            ? `open "${authUrl}"`
+            : `xdg-open "${authUrl}"`;
+      exec(opener);
     });
   });
 
