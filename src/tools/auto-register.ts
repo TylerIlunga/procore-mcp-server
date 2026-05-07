@@ -9,6 +9,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { procoreApiCall } from "../api/client.js";
 import { buildDescription, enrichParamDescription } from "./description-builder.js";
+import { buildAnnotations, buildTitle } from "./annotation-builder.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MANIFEST_PATH = join(__dirname, "..", "..", "..", "data", "tools-manifest.json");
@@ -38,7 +39,12 @@ interface ToolManifestEntry {
 }
 
 function buildZodType(param: ToolParam, moduleName: string): z.ZodTypeAny {
-  const desc = enrichParamDescription(param.name, param.description, moduleName);
+  const desc = enrichParamDescription(
+    param.name,
+    param.description,
+    moduleName,
+    param.source
+  );
   let zodType: z.ZodTypeAny;
 
   switch (param.type) {
@@ -199,9 +205,23 @@ export function registerAutoTools(server: McpServer): number {
     }
 
     const description = buildDescription(entry);
+    const annotations = buildAnnotations(
+      entry.method,
+      entry.toolName,
+      entry.summary
+    );
 
     try {
-      server.tool(entry.toolName, description, shape, createToolHandler(entry));
+      server.registerTool(
+        entry.toolName,
+        {
+          title: buildTitle(entry.summary),
+          description,
+          inputSchema: shape,
+          annotations,
+        },
+        createToolHandler(entry)
+      );
       registered++;
     } catch (err) {
       console.error(
