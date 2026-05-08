@@ -171,7 +171,7 @@ export function registerTools(server: McpServer): void {
     {
       title: "Full-Text Search Across Endpoints",
       description:
-        "Full-text search across all 2,636 Procore API endpoint summaries, tags, and paths. " +
+        "Full-text search across every Procore API endpoint summary, tag, and path. " +
         "Use to quickly locate the right endpoint when you know roughly what you're " +
         "looking for — e.g. 'RFI', 'budget', 'punch list', 'submittal'. Returns " +
         "a JSON array of matches ranked by relevance.",
