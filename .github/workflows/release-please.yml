@@ -1,0 +1,25 @@
+name: Release Please
+
+# Maintains a rolling release PR on main. Every merged Conventional Commit
+# (feat:, fix:, ...) updates that PR's version and notes; merging the release
+# PR tags the version, publishes the GitHub Release, bumps package.json and
+# updates CHANGELOG.md. Nothing ships until the release PR is merged.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    name: Maintain release PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

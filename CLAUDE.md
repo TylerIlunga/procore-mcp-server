@@ -74,6 +74,22 @@ PROCORE_CLIENT_SECRET - OAuth client secret
 PROCORE_COMPANY_ID    - Default Procore company ID (integer)
 ```
 
+## Releasing
+
+Releases are automated by [release-please](https://github.com/googleapis/release-please)
+(`.github/workflows/release-please.yml`). Do not tag or publish releases by hand.
+
+1. Land work on `main` with a Conventional Commit subject — `feat:` bumps the
+   minor version, `fix:` the patch, and `feat!:`/`BREAKING CHANGE:` the major.
+   `docs:` and `chore:` are recorded but never bump.
+2. release-please keeps a single open `chore(release): x.y.z` PR on `main` that
+   accumulates every merge since the last release.
+3. Merging that release PR tags the version, publishes the GitHub Release,
+   bumps `package.json`, and updates `CHANGELOG.md`.
+
+`.release-please-manifest.json` holds the current version and must stay in sync
+with `package.json`; release-please updates both.
+
 ## Coding Conventions
 
 - TypeScript strict mode, ES2022 target, Node16 modules
