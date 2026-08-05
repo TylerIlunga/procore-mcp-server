@@ -74,6 +74,21 @@ PROCORE_CLIENT_SECRET - OAuth client secret
 PROCORE_COMPANY_ID    - Default Procore company ID (integer)
 ```
 
+## Releasing
+
+Releases are cut by hand. **Bump `package.json` in the same PR as the release** —
+it is not updated automatically, and silently drifted from the tags between
+v1.0.0 and v1.2.0.
+
+1. Merge the work to `main`.
+2. Set `version` in `package.json` to the version being shipped.
+3. Tag and publish:
+   `gh release create vX.Y.Z --target main --title "..." --notes-file NOTES.md`
+
+Notes: `--target` takes a branch name or a full commit SHA — an abbreviated SHA
+is rejected. Write notes to a file rather than inlining them; long `--notes`
+heredocs are easy to mangle.
+
 ## Coding Conventions
 
 - TypeScript strict mode, ES2022 target, Node16 modules
