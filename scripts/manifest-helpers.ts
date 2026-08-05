@@ -10,9 +10,59 @@ export interface ToolParam {
   description: string;
   enum?: unknown[];
   source: "path" | "query" | "body";
+  /** Set when a body field was merged away into an identically named path or
+   *  query param. The handler sends the single supplied value to both places. */
+  alsoBody?: boolean;
 }
 
 const MAX_TOOL_NAME_LENGTH = 64;
+
+/** Mirror of the key transform auto-register applies when building the Zod
+ *  shape. Collisions must be detected on this form, not the raw OAS name. */
+export function toSchemaKey(name: string): string {
+  return name.replace(/\[/g, "__").replace(/\]/g, "").replace(/\./g, "_");
+}
+
+const SOURCE_RANK: Record<ToolParam["source"], number> = {
+  path: 0,
+  query: 1,
+  body: 2,
+};
+
+/**
+ * Collapse params that would land on the same Zod key. Procore routinely
+ * repeats an identifier in both the URL and the request body (e.g. company_id
+ * on create_permission_template); previously the body entry silently clobbered
+ * the path entry in the generated schema, so the agent saw the wrong
+ * description for a required path param. Path wins; a dropped body twin is
+ * recorded via alsoBody so the value is still sent in the payload.
+ */
+export function dedupeParams(params: ToolParam[]): ToolParam[] {
+  const byKey = new Map<string, ToolParam>();
+
+  for (const param of params) {
+    const key = toSchemaKey(param.name);
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, { ...param });
+      continue;
+    }
+
+    const winner =
+      SOURCE_RANK[param.source] < SOURCE_RANK[existing.source]
+        ? { ...param }
+        : existing;
+    const loser = winner === existing ? param : existing;
+
+    if (loser.source === "body") winner.alsoBody = true;
+    if (existing.alsoBody) winner.alsoBody = true;
+    // A value required anywhere is required overall.
+    winner.required = existing.required || param.required;
+    byKey.set(key, winner);
+  }
+
+  return [...byKey.values()];
+}
 
 /** Convert OAS summary to a clean snake_case tool name */
 export function summaryToToolName(
@@ -52,14 +102,28 @@ export function summaryToToolName(
 }
 
 /** Truncate tool name to max length, cutting at word boundary */
-export function truncateToolName(name: string): string {
-  if (name.length <= MAX_TOOL_NAME_LENGTH) return name;
-  const truncated = name.slice(0, MAX_TOOL_NAME_LENGTH);
+export function truncateToolName(
+  name: string,
+  limit: number = MAX_TOOL_NAME_LENGTH
+): string {
+  if (name.length <= limit) return name;
+  const truncated = name.slice(0, limit);
   const lastUnderscore = truncated.lastIndexOf("_");
-  if (lastUnderscore > MAX_TOOL_NAME_LENGTH / 2) {
+  if (lastUnderscore > limit / 2) {
     return truncated.slice(0, lastUnderscore);
   }
   return truncated;
+}
+
+/**
+ * Append a disambiguating suffix, trimming the base so the suffix always
+ * survives. Truncating after concatenation silently discarded the suffix on
+ * long names and reintroduced the very collision it was meant to break.
+ */
+export function withSuffix(base: string, suffix: string): string {
+  const tail = suffix.startsWith("_") ? suffix : `_${suffix}`;
+  const room = MAX_TOOL_NAME_LENGTH - tail.length;
+  return truncateToolName(base, room).replace(/_+$/, "") + tail;
 }
 
 export function mapOasTypeToSimple(schema: Record<string, unknown>): string {

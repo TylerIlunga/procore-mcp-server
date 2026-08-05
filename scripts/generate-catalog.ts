@@ -21,6 +21,9 @@ interface OASOperation {
   summary?: string;
   description?: string;
   tags?: string[];
+  deprecated?: boolean;
+  "x-deprecated-at"?: string;
+  "x-sunset"?: string;
   parameters?: OASParameter[];
   requestBody?: {
     required?: boolean;
@@ -42,6 +45,12 @@ interface CatalogEntry {
   requiredParams: string[];
   hasRequestBody: boolean;
   contentType: string | null;
+  /** True when the 2xx response is a JSON array (a collection), so callers
+   *  know pagination applies. Derived from the response schema, not the path. */
+  returnsCollection: boolean;
+  deprecated: boolean;
+  deprecatedAt?: string;
+  sunset?: string;
 }
 
 interface EndpointDetail {
@@ -51,6 +60,9 @@ interface EndpointDetail {
   summary: string;
   description: string;
   tag: string;
+  deprecated: boolean;
+  deprecatedAt?: string;
+  sunset?: string;
   parameters: Array<{
     name: string;
     in: string;
@@ -142,6 +154,65 @@ function simplifySchema(
   return result;
 }
 
+/**
+ * Decide whether a 2xx response body is a collection. Unwraps allOf/oneOf/anyOf
+ * so wrapper schemas don't hide an array. Returns null when the spec gives no
+ * usable signal, in which case the caller falls back to path/summary shape.
+ */
+function schemaIsCollection(
+  schema: Record<string, unknown> | undefined,
+  depth = 0
+): boolean | null {
+  if (!schema || depth > 4) return null;
+  if (schema.type === "array") return true;
+  if (schema.type === "object") return false;
+
+  for (const key of ["oneOf", "anyOf", "allOf"] as const) {
+    const branches = schema[key] as Record<string, unknown>[] | undefined;
+    if (!Array.isArray(branches)) continue;
+    let sawObject = false;
+    for (const branch of branches) {
+      const verdict = schemaIsCollection(branch, depth + 1);
+      if (verdict === true) return true;
+      if (verdict === false) sawObject = true;
+    }
+    if (sawObject) return false;
+  }
+  return null;
+}
+
+/** Path ends in a literal segment (a collection) rather than an `{id}`. */
+function pathEndsInCollection(path: string): boolean {
+  const last = path.split("/").filter(Boolean).pop() || "";
+  return !last.startsWith("{");
+}
+
+const LIST_SUMMARY = /^(list|index|get all|retrieve all|show all|return a list|returns a list|get a list)\b/i;
+
+function detectReturnsCollection(
+  operation: OASOperation,
+  method: string,
+  path: string
+): boolean {
+  if (method !== "get") return false;
+
+  const responses = (operation.responses || {}) as Record<
+    string,
+    { content?: Record<string, { schema?: Record<string, unknown> }> }
+  >;
+  const ok = responses["200"] || responses["201"];
+  const schema = ok?.content?.["application/json"]?.schema;
+
+  const verdict = schemaIsCollection(schema);
+  if (verdict !== null) return verdict;
+
+  // No usable schema. Trust an explicit "List ..." summary; otherwise assume a
+  // single object. Guessing from path shape alone is what previously mislabelled
+  // singleton config endpoints as paginated collections.
+  if (!pathEndsInCollection(path)) return false;
+  return LIST_SUMMARY.test(operation.summary || "");
+}
+
 function main() {
   console.log("Loading OAS file...");
   const oas = JSON.parse(readFileSync(OAS_PATH, "utf8"));
@@ -224,6 +295,10 @@ function main() {
         requiredParams,
         hasRequestBody,
         contentType,
+        returnsCollection: detectReturnsCollection(operation, method, path),
+        deprecated: operation.deprecated === true,
+        deprecatedAt: operation["x-deprecated-at"],
+        sunset: operation["x-sunset"],
       };
       catalog.push(entry);
 
@@ -251,8 +326,11 @@ function main() {
         method: method.toUpperCase(),
         path,
         summary: operation.summary || "",
-        description: truncate(operation.description || "", 500),
+        description: truncate(operation.description || "", 800),
         tag,
+        deprecated: operation.deprecated === true,
+        deprecatedAt: operation["x-deprecated-at"],
+        sunset: operation["x-sunset"],
         parameters: dedupedParams.map((p) => ({
           name: p.name,
           in: p.in,
@@ -337,6 +415,10 @@ function main() {
     ).toFixed(0)} KB`
   );
   console.log(`  Detail files: ${operationCount}`);
+  console.log(`  Deprecated: ${catalog.filter((e) => e.deprecated).length}`);
+  console.log(
+    `  Collection-returning GETs: ${catalog.filter((e) => e.returnsCollection).length}`
+  );
 
   // Category breakdown
   console.log(`\nCategories:`);

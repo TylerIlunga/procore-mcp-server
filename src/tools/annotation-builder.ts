@@ -14,23 +14,25 @@ export interface ToolAnnotationsLike {
 }
 
 /** Prettify an OAS summary into a Title-Case display name. */
-export function buildTitle(summary: string): string {
+export function buildTitle(summary: string, deprecated = false): string {
   if (!summary) return "";
-  return summary
+  const base = summary
     .replace(/_/g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .replace(/\b\w/g, (c) => c.toUpperCase())
-    .slice(0, 80);
+    .slice(0, deprecated ? 66 : 80);
+  return deprecated ? `${base} (Deprecated)` : base;
 }
 
 export function buildAnnotations(
   method: string,
   toolName: string,
-  summary: string
+  summary: string,
+  deprecated = false
 ): ToolAnnotationsLike {
   const name = toolName.toLowerCase();
-  const title = buildTitle(summary);
+  const title = buildTitle(summary, deprecated);
 
   const isDestructiveByName =
     name.startsWith("delete_") ||
@@ -69,11 +71,13 @@ export function buildAnnotations(
         openWorldHint: true,
       };
     case "PATCH":
+      // Procore PATCH applies a partial update, so replaying the same body
+      // converges on the same state.
       return {
         title,
         readOnlyHint: false,
         destructiveHint: isDestructiveByName,
-        idempotentHint: false,
+        idempotentHint: true,
         openWorldHint: true,
       };
     case "POST":

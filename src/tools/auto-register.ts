@@ -8,7 +8,8 @@ import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { procoreApiCall } from "../api/client.js";
-import { buildDescription, enrichParamDescription } from "./description-builder.js";
+import { buildDescription } from "./description-builder.js";
+import { enrichParamDescription } from "./param-descriptions.js";
 import { buildAnnotations, buildTitle } from "./annotation-builder.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -21,6 +22,9 @@ interface ToolParam {
   description: string;
   enum?: unknown[];
   source: "path" | "query" | "body";
+  /** Procore repeats some identifiers in both the URL and the payload. The
+   *  manifest keeps one declaration; this flag replays the value into the body. */
+  alsoBody?: boolean;
 }
 
 interface ToolManifestEntry {
@@ -36,6 +40,10 @@ interface ToolManifestEntry {
   contentType: string | null;
   params: ToolParam[];
   bodyWrapper?: string;
+  returnsCollection?: boolean;
+  deprecated?: boolean;
+  deprecatedAt?: string;
+  sunset?: string;
 }
 
 function buildZodType(param: ToolParam, moduleName: string): z.ZodTypeAny {
@@ -98,6 +106,11 @@ function createToolHandler(entry: ToolManifestEntry) {
         case "body":
           bodyObj[param.name] = value;
           break;
+      }
+
+      // Identifier that Procore expects in the URL *and* the payload.
+      if (param.alsoBody && param.source !== "body") {
+        bodyObj[param.name] = value;
       }
     }
 
@@ -183,18 +196,24 @@ export function registerAutoTools(server: McpServer): number {
         .replace(/\[/g, "__")
         .replace(/\]/g, "")
         .replace(/\./g, "_");
+      // The manifest already collapses duplicates; this guard keeps a stray
+      // collision from silently replacing an earlier param's schema.
+      if (shape[safeName]) continue;
       shape[safeName] = buildZodType(
         { ...param, name: safeName },
         entry.module
       );
     }
 
-    if (entry.method === "GET") {
+    // Only advertise pagination where the endpoint actually returns a
+    // collection. Offering page/per_page on a singleton GET made the schema
+    // corroborate a "paginated array" claim that was never true.
+    if (entry.method === "GET" && entry.returnsCollection) {
       if (!shape.page) {
         shape.page = z
           .number()
           .optional()
-          .describe("Page number for paginated results (default: 1)");
+          .describe("Page number for paginated results (default: 1, 1-indexed)");
       }
       if (!shape.per_page) {
         shape.per_page = z
@@ -208,14 +227,15 @@ export function registerAutoTools(server: McpServer): number {
     const annotations = buildAnnotations(
       entry.method,
       entry.toolName,
-      entry.summary
+      entry.summary,
+      entry.deprecated
     );
 
     try {
       server.registerTool(
         entry.toolName,
         {
-          title: buildTitle(entry.summary),
+          title: buildTitle(entry.summary, entry.deprecated),
           description,
           inputSchema: shape,
           annotations,

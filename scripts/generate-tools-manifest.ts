@@ -14,6 +14,8 @@ import {
   mapOasTypeToSimple,
   extractBodyParams,
   enrichParamDescription,
+  dedupeParams,
+  withSuffix,
 } from "./manifest-helpers.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -34,6 +36,10 @@ interface CatalogEntry {
   requiredParams: string[];
   hasRequestBody: boolean;
   contentType: string | null;
+  returnsCollection: boolean;
+  deprecated: boolean;
+  deprecatedAt?: string;
+  sunset?: string;
 }
 
 interface EndpointDetail {
@@ -70,6 +76,10 @@ interface ToolManifestEntry {
   contentType: string | null;
   params: ToolParam[];
   bodyWrapper?: string;
+  returnsCollection: boolean;
+  deprecated: boolean;
+  deprecatedAt?: string;
+  sunset?: string;
 }
 
 function buildManifestEntry(
@@ -121,9 +131,25 @@ function buildManifestEntry(
     module: entry.module,
     version: entry.version,
     contentType: entry.contentType,
-    params,
+    params: dedupeParams(params),
     bodyWrapper,
+    returnsCollection: entry.returnsCollection,
+    deprecated: entry.deprecated,
+    deprecatedAt: entry.deprecatedAt,
+    sunset: entry.sunset,
   };
+}
+
+/**
+ * Endpoints that cannot function as agent-callable tools. The `/oauth/*` family
+ * drives an interactive browser redirect and token exchange that `src/auth/`
+ * already owns end to end: `/oauth/authorize` answers with an HTML redirect
+ * rather than JSON, and revoking or re-minting a token mid-session would break
+ * the server's own credentials. They stay reachable through `procore_api_call`
+ * for anyone who genuinely needs them.
+ */
+function isNonCallable(entry: CatalogEntry): boolean {
+  return entry.path.startsWith("/oauth");
 }
 
 /** Replace `/rest/vX.Y/` with `/rest/vX/` so different versions of the same
@@ -202,26 +228,35 @@ function resolveCollisions(manifest: ToolManifestEntry[]): void {
         entries.filter((x) => x.toolName === newName).length > 0
       ) {
         const vSuffix = e.version.replace(/\./g, "_");
-        if (!newName.endsWith(vSuffix)) newName = newName + "_" + vSuffix;
+        if (!newName.endsWith(vSuffix)) newName = withSuffix(newName, vSuffix);
       }
 
       const allNames = manifest.map((m) => m.toolName);
       if (allNames.filter((n) => n === newName).length > 1) {
-        newName = newName + "_" + (i + 1);
+        newName = withSuffix(newName, String(i + 1));
       }
 
       e.toolName = truncateToolName(newName);
     }
   }
 
-  // Final dedup pass
-  const finalNames = new Map<string, number>();
+  // Final pass: guarantee uniqueness. Distinct endpoints can still collapse to
+  // the same name when their summaries match and every structural suffix is
+  // already taken, so keep numbering until the name is genuinely free.
+  const taken = new Set<string>();
   for (const entry of manifest) {
-    const count = finalNames.get(entry.toolName) || 0;
-    if (count > 0) {
-      entry.toolName = truncateToolName(entry.toolName + "_" + (count + 1));
+    if (!taken.has(entry.toolName)) {
+      taken.add(entry.toolName);
+      continue;
     }
-    finalNames.set(entry.toolName, count + 1);
+    let n = 2;
+    let candidate = withSuffix(entry.toolName, String(n));
+    while (taken.has(candidate)) {
+      n++;
+      candidate = withSuffix(entry.toolName, String(n));
+    }
+    entry.toolName = candidate;
+    taken.add(candidate);
   }
 }
 
@@ -233,8 +268,13 @@ function main() {
   ) as CatalogEntry[];
 
   let manifest: ToolManifestEntry[] = [];
+  let skippedNonCallable = 0;
 
   for (const entry of catalog) {
+    if (isNonCallable(entry)) {
+      skippedNonCallable++;
+      continue;
+    }
     let detail: EndpointDetail;
     try {
       detail = JSON.parse(
@@ -269,6 +309,12 @@ function main() {
   }
 
   console.log(`\nManifest generated: ${manifest.length} tools`);
+  console.log(
+    `Skipped ${skippedNonCallable} non-callable endpoint(s); still reachable via procore_api_call.`
+  );
+  console.log(
+    `Deprecated tools carrying a sunset notice: ${manifest.filter((e) => e.deprecated).length}`
+  );
   console.log(`\nBy category:`);
   for (const [cat, count] of [...byCategory.entries()].sort(
     (a, b) => b[1] - a[1]

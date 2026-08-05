@@ -27,7 +27,27 @@ npm start              # Start MCP server (stdio transport)
 
 ### Build Pipeline
 
-`specs/combined_OAS.json` (41MB) -> `scripts/generate-catalog.ts` -> `data/catalog.json` + `data/endpoint-details/`
+`specs/combined_OAS.json` (~54MB) -> `scripts/generate-catalog.ts` -> `data/catalog.json` + `data/endpoint-details/` -> `scripts/generate-tools-manifest.ts` -> `data/tools-manifest.json`
+
+Current spec (2026-08-04): 3,155 operations -> 2,929 generated tools + 7 meta tools.
+The manifest drops older-version duplicates of the same path and the
+non-callable `/oauth/*` endpoints; both stay reachable via `procore_api_call`.
+
+### Tool Description Quality
+
+Generated tool descriptions are assembled from one sentence per scoring
+dimension, and no sentence may restate another:
+
+| Module | Responsibility |
+|--------|----------------|
+| `src/tools/resource-label.ts` | Names the actual resource from the OAS summary (never the category) |
+| `src/tools/description-builder.ts` | Purpose, deprecation notice, usage guidance, assembly |
+| `src/tools/behavior-builder.ts` | Return shape, side effects, failure modes |
+| `src/tools/param-descriptions.ts` | Per-parameter prose and source hints |
+| `src/tools/annotation-builder.ts` | Titles and MCP annotations |
+
+Pagination is advertised only when the OAS response schema is genuinely an
+array (`returnsCollection`), in both the description and the input schema.
 
 ### Key Directories
 

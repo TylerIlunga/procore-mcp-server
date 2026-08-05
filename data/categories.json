@@ -3,7 +3,7 @@
     "Core": {
       "modules": {
         "Workflows": {
-          "endpointCount": 40,
+          "endpointCount": 52,
           "tags": [
             "Core/Workflows/workflow-tools",
             "Core/Workflows/workflow-templates",
@@ -12,8 +12,10 @@
             "Core/Workflows/workflow-possible-assignees",
             "Core/Workflows/workflow-managers",
             "Core/Workflows/workflow-instances",
+            "Core/Workflows/workflow-instances-history",
             "Core/Workflows/workflow-instances-flow-control",
             "Core/Workflows/workflow-instances-bulk",
+            "Core/Workflows/workflow-bulk-replace-requests",
             "Core/Workflows/legacy---workflow-permanent-logs",
             "Core/Workflows/legacy---workflow-instances",
             "Core/Workflows/legacy---workflow-activity-histories"
@@ -29,8 +31,26 @@
             "Core/Tasks/task-item-categories"
           ]
         },
+        "Project": {
+          "endpointCount": 35,
+          "tags": [
+            "Core/Project/project-work-scopes",
+            "Core/Project/project-delivery-methods",
+            "Core/Project/project-dates",
+            "Core/Project/links",
+            "Core/Project/vendor-project-roles",
+            "Core/Project/user-project-roles",
+            "Core/Project/project-tools",
+            "Core/Project/project-templates",
+            "Core/Project/project-roles",
+            "Core/Project/project-demos",
+            "Core/Project/project-assignments",
+            "Core/Project/locations",
+            "Core/Project/admin-equipment"
+          ]
+        },
         "Directory": {
-          "endpointCount": 161,
+          "endpointCount": 162,
           "tags": [
             "Core/Directory/project-memberships",
             "Core/Directory/company-users",
@@ -62,24 +82,8 @@
             "Core/Directory/company-inactive-people"
           ]
         },
-        "Project": {
-          "endpointCount": 33,
-          "tags": [
-            "Core/Project/project-dates",
-            "Core/Project/links",
-            "Core/Project/vendor-project-roles",
-            "Core/Project/user-project-roles",
-            "Core/Project/project-tools",
-            "Core/Project/project-templates",
-            "Core/Project/project-roles",
-            "Core/Project/project-demos",
-            "Core/Project/project-assignments",
-            "Core/Project/locations",
-            "Core/Project/admin-equipment"
-          ]
-        },
         "Documents": {
-          "endpointCount": 39,
+          "endpointCount": 44,
           "tags": [
             "Core/Documents/documents",
             "Core/Documents/project-folders-and-files",
@@ -89,42 +93,54 @@
             "Core/Documents/company-folders-and-files"
           ]
         },
+        "File Access & Storage": {
+          "endpointCount": 22,
+          "tags": [
+            "Core/File Access & Storage/uploads"
+          ]
+        },
         "Portfolio": {
           "endpointCount": 10,
           "tags": [
             "Core/Portfolio/projects"
           ]
         },
-        "File Access & Storage": {
-          "endpointCount": 12,
+        "Assets": {
+          "endpointCount": 83,
           "tags": [
-            "Core/File Access & Storage/legacy---uploads"
-          ]
-        },
-        "Telematics": {
-          "endpointCount": 3,
-          "tags": [
-            "Core/Telematics/telematics"
-          ]
-        },
-        "Equipment": {
-          "endpointCount": 102,
-          "tags": [
-            "Core/Equipment/unmanaged-equipment",
-            "Core/Equipment/type",
-            "Core/Equipment/status",
-            "Core/Equipment/project-association",
-            "Core/Equipment/model",
-            "Core/Equipment/make",
-            "Core/Equipment/field-sets",
-            "Core/Equipment/equipment",
-            "Core/Equipment/equipment-maintenance",
-            "Core/Equipment/category",
-            "Core/Equipment/attachment"
+            "Core/Assets/system-states",
+            "Core/Assets/project-procore-default-fields",
+            "Core/Assets/project-naming-standard",
+            "Core/Assets/project-naming-standard-lov-codes",
+            "Core/Assets/project-fieldsets",
+            "Core/Assets/project-field-rules",
+            "Core/Assets/project-default-field-values",
+            "Core/Assets/project-assets",
+            "Core/Assets/project-asset-types",
+            "Core/Assets/project-asset-type-field-rules",
+            "Core/Assets/project-asset-type-available-fields",
+            "Core/Assets/project-asset-type-attachments",
+            "Core/Assets/project-asset-statuses",
+            "Core/Assets/project-asset-permissions",
+            "Core/Assets/project-asset-change-history",
+            "Core/Assets/project-asset-attachments",
+            "Core/Assets/company-procore-default-fields",
+            "Core/Assets/company-naming-standard",
+            "Core/Assets/company-naming-standard-lov-codes",
+            "Core/Assets/company-field-rules",
+            "Core/Assets/company-default-field-values",
+            "Core/Assets/company-assets",
+            "Core/Assets/company-asset-types",
+            "Core/Assets/company-asset-type-field-rules",
+            "Core/Assets/company-asset-type-available-fields",
+            "Core/Assets/company-asset-statuses",
+            "Core/Assets/company-asset-permissions",
+            "Core/Assets/company-asset-change-history",
+            "Core/Assets/company-asset-attachments"
           ]
         }
       },
-      "totalEndpoints": 415
+      "totalEndpoints": 423
     },
     "Platform - Developer Tools": {
       "modules": {
@@ -145,7 +161,7 @@
           ]
         },
         "App Marketplace": {
-          "endpointCount": 11,
+          "endpointCount": 9,
           "tags": [
             "Platform - Developer Tools/App Marketplace/installation-requests",
             "Platform - Developer Tools/App Marketplace/app-installations",
@@ -159,7 +175,7 @@
           ]
         }
       },
-      "totalEndpoints": 53
+      "totalEndpoints": 51
     },
     "Construction Financials": {
       "modules": {
@@ -171,13 +187,14 @@
           ]
         },
         "Commitments": {
-          "endpointCount": 141,
+          "endpointCount": 142,
           "tags": [
             "Construction Financials/Commitments/requisitions-subcontractor-invoices",
             "Construction Financials/Commitments/commitment-contracts",
             "Construction Financials/Commitments/commitment-contract-summary",
             "Construction Financials/Commitments/commitment-contract-line-items",
             "Construction Financials/Commitments/commitment-contract-export-pdf",
+            "Construction Financials/Commitments/commitment-contract-attachments",
             "Construction Financials/Commitments/commitment-change-order-rows-csv-exports",
             "Construction Financials/Commitments/commitment-change-order-line-items",
             "Construction Financials/Commitments/commitment-change-order-export-pdf",
@@ -209,24 +226,22 @@
           ]
         },
         "Payments": {
-          "endpointCount": 30,
+          "endpointCount": 14,
           "tags": [
             "Construction Financials/Payments/requisition-compliance-documents",
+            "Construction Financials/Payments/contract-compliance-documents",
             "Construction Financials/Payments/payments-subtiers",
-            "Construction Financials/Payments/payments-subtier-waivers",
-            "Construction Financials/Payments/payments-projects",
-            "Construction Financials/Payments/payments-beneficiary",
-            "Construction Financials/Payments/early-pay-programs",
-            "Construction Financials/Payments/disbursements"
+            "Construction Financials/Payments/payments-subtier-waivers"
           ]
         },
         "Prime Contracts": {
-          "endpointCount": 54,
+          "endpointCount": 55,
           "tags": [
             "Construction Financials/Prime Contracts/prime-contracts",
             "Construction Financials/Prime Contracts/prime-contracts-export-pdf",
             "Construction Financials/Prime Contracts/prime-contract-summary",
             "Construction Financials/Prime Contracts/prime-contract-line-items",
+            "Construction Financials/Prime Contracts/prime-contract-attachments",
             "Construction Financials/Prime Contracts/prime-change-orders-export-pdf",
             "Construction Financials/Prime Contracts/prime-change-orders-batches-export-pdf",
             "Construction Financials/Prime Contracts/prime-change-order-rows-csv-exports",
@@ -238,18 +253,10 @@
             "Construction Financials/Prime Contracts/payment-application-owner-invoice-line-items"
           ]
         },
-        "Currency Configurations": {
-          "endpointCount": 14,
-          "tags": [
-            "Construction Financials/Currency Configurations/company-currency-configurations",
-            "Construction Financials/Currency Configurations/project-exchange-rates",
-            "Construction Financials/Currency Configurations/project-currency-configurations",
-            "Construction Financials/Currency Configurations/company-exchange-rates"
-          ]
-        },
         "Work Breakdown Structure": {
-          "endpointCount": 70,
+          "endpointCount": 71,
           "tags": [
+            "Construction Financials/Work Breakdown Structure/line-item-type-categories",
             "Construction Financials/Work Breakdown Structure/codes",
             "Construction Financials/Work Breakdown Structure/attributes",
             "Construction Financials/Work Breakdown Structure/attribute-items",
@@ -259,6 +266,15 @@
             "Construction Financials/Work Breakdown Structure/segment-item-lists",
             "Construction Financials/Work Breakdown Structure/patterns",
             "Construction Financials/Work Breakdown Structure/cost-codes"
+          ]
+        },
+        "Currency Configurations": {
+          "endpointCount": 14,
+          "tags": [
+            "Construction Financials/Currency Configurations/company-currency-configurations",
+            "Construction Financials/Currency Configurations/project-exchange-rates",
+            "Construction Financials/Currency Configurations/project-currency-configurations",
+            "Construction Financials/Currency Configurations/company-exchange-rates"
           ]
         },
         "Change Orders": {
@@ -272,11 +288,12 @@
           ]
         },
         "Change Events": {
-          "endpointCount": 24,
+          "endpointCount": 27,
           "tags": [
             "Construction Financials/Change Events/change-event-types",
             "Construction Financials/Change Events/change-event-statuses",
             "Construction Financials/Change Events/change-event-settings",
+            "Construction Financials/Change Events/change-event-comments",
             "Construction Financials/Change Events/change-types",
             "Construction Financials/Change Events/change-events",
             "Construction Financials/Change Events/change-event-production-quantities"
@@ -324,20 +341,21 @@
           ]
         },
         "Contracts": {
-          "endpointCount": 7,
+          "endpointCount": 10,
           "tags": [
             "Construction Financials/Contracts/invoice-configuration",
-            "Construction Financials/Contracts/financial-markups"
+            "Construction Financials/Contracts/financial-markups",
+            "Construction Financials/Contracts/electronic-signatures"
           ]
         },
-        "Direct Costs": {
+        "Project Level Direct Costs": {
           "endpointCount": 18,
           "tags": [
-            "Construction Financials/Direct Costs/direct-costs"
+            "Construction Financials/Project Level Direct Costs/direct-costs"
           ]
         }
       },
-      "totalEndpoints": 464
+      "totalEndpoints": 457
     },
     "Company Admin": {
       "modules": {
@@ -372,15 +390,15 @@
           ]
         },
         "Custom - Configurable Tools": {
-          "endpointCount": 58,
+          "endpointCount": 77,
           "tags": [
             "Company Admin/Custom - Configurable Tools/generic-tools",
             "Company Admin/Custom - Configurable Tools/custom-fields",
+            "Company Admin/Custom - Configurable Tools/custom-field-lov-entries",
+            "Company Admin/Custom - Configurable Tools/configurable-field-sets",
             "Company Admin/Custom - Configurable Tools/resource-planning-custom-fields",
             "Company Admin/Custom - Configurable Tools/generic-tool-items",
-            "Company Admin/Custom - Configurable Tools/custom-field-lov-entries",
-            "Company Admin/Custom - Configurable Tools/correspondences",
-            "Company Admin/Custom - Configurable Tools/configurable-field-sets"
+            "Company Admin/Custom - Configurable Tools/correspondences"
           ]
         },
         "Project-Level Configuration": {
@@ -398,12 +416,12 @@
           ]
         }
       },
-      "totalEndpoints": 144
+      "totalEndpoints": 163
     },
     "Project Management": {
       "modules": {
         "Submittals": {
-          "endpointCount": 66,
+          "endpointCount": 67,
           "tags": [
             "Project Management/Submittals/submittals",
             "Project Management/Submittals/submittal-responses",
@@ -414,21 +432,23 @@
           ]
         },
         "Specifications": {
-          "endpointCount": 23,
+          "endpointCount": 60,
           "tags": [
+            "Project Management/Specifications/specifications-user-permissions",
             "Project Management/Specifications/specifications-configuration",
-            "Project Management/Specifications/specification-areas",
             "Project Management/Specifications/specification-uploads",
             "Project Management/Specifications/specification-sets",
             "Project Management/Specifications/specification-sections",
-            "Project Management/Specifications/specification-section-terms",
             "Project Management/Specifications/specification-section-revisions",
-            "Project Management/Specifications/specification-section-revision-emails",
-            "Project Management/Specifications/specification-section-divisions"
+            "Project Management/Specifications/specification-section-divisions",
+            "Project Management/Specifications/specification-areas",
+            "Project Management/Specifications/specification-area-transfers",
+            "Project Management/Specifications/specification-section-terms",
+            "Project Management/Specifications/specification-section-revision-emails"
           ]
         },
         "Punch List": {
-          "endpointCount": 46,
+          "endpointCount": 47,
           "tags": [
             "Project Management/Punch List/punch-item-filter-options",
             "Project Management/Punch List/punch-list-read-user-options",
@@ -443,7 +463,7 @@
           ]
         },
         "Inspections": {
-          "endpointCount": 186,
+          "endpointCount": 190,
           "tags": [
             "Project Management/Inspections/project-inspection-template-item-evidence-configurations",
             "Project Management/Inspections/inspection-reinspections",
@@ -488,7 +508,7 @@
           ]
         },
         "Meetings": {
-          "endpointCount": 27,
+          "endpointCount": 28,
           "tags": [
             "Project Management/Meetings/meetings",
             "Project Management/Meetings/meeting-topics",
@@ -497,12 +517,60 @@
             "Project Management/Meetings/meeting-attendees"
           ]
         },
+        "RFI": {
+          "endpointCount": 52,
+          "tags": [
+            "Project Management/RFI/external-rfis-filter-options",
+            "Project Management/RFI/external-rfi",
+            "Project Management/RFI/rfis",
+            "Project Management/RFI/rfis-default-distribution",
+            "Project Management/RFI/replies",
+            "Project Management/RFI/potential-rfi-managers",
+            "Project Management/RFI/potential-assignees",
+            "Project Management/RFI/filter-options",
+            "Project Management/RFI/advanced-exports"
+          ]
+        },
+        "Field Productivity": {
+          "endpointCount": 213,
+          "tags": [
+            "Project Management/Field Productivity/equipment-timecard-entries",
+            "Project Management/Field Productivity/timesheets",
+            "Project Management/Field Productivity/timesheets-filters",
+            "Project Management/Field Productivity/timesheet-to-budget-configuration",
+            "Project Management/Field Productivity/timecards",
+            "Project Management/Field Productivity/timecard-entries",
+            "Project Management/Field Productivity/time-types",
+            "Project Management/Field Productivity/time-and-material-timecard",
+            "Project Management/Field Productivity/time-and-material-signature",
+            "Project Management/Field Productivity/time-and-material-notification",
+            "Project Management/Field Productivity/time-and-material-equipment-log",
+            "Project Management/Field Productivity/time-and-material-entry",
+            "Project Management/Field Productivity/time-and-material-attachment",
+            "Project Management/Field Productivity/task-codes-field-productivity",
+            "Project Management/Field Productivity/rounding-configuration",
+            "Project Management/Field Productivity/material",
+            "Project Management/Field Productivity/managed-equipment-attachment",
+            "Project Management/Field Productivity/managed-equipment---project-level",
+            "Project Management/Field Productivity/managed-equipment---company-level",
+            "Project Management/Field Productivity/gps-positions",
+            "Project Management/Field Productivity/equipment-type",
+            "Project Management/Field Productivity/equipment-model",
+            "Project Management/Field Productivity/equipment-make",
+            "Project Management/Field Productivity/equipment-maintenance-log",
+            "Project Management/Field Productivity/equipment-log",
+            "Project Management/Field Productivity/equipment-category",
+            "Project Management/Field Productivity/company-managed-equipment-maintenance-log-attachment",
+            "Project Management/Field Productivity/actual-production-quantities"
+          ]
+        },
         "Coordination Issues": {
-          "endpointCount": 49,
+          "endpointCount": 56,
           "tags": [
             "Project Management/Coordination Issues/coordination-issues",
             "Project Management/Coordination Issues/coordination-issues-workflow-issues",
             "Project Management/Coordination Issues/coordination-issue-viewpoints",
+            "Project Management/Coordination Issues/coordination-issue-document-snapshots",
             "Project Management/Coordination Issues/coordination-issue-sync",
             "Project Management/Coordination Issues/coordination-issue-status-totals",
             "Project Management/Coordination Issues/coordination-issue-status-changes",
@@ -520,7 +588,7 @@
           ]
         },
         "Drawings": {
-          "endpointCount": 37,
+          "endpointCount": 38,
           "tags": [
             "Project Management/Drawings/coordination-issue-statuses",
             "Project Management/Drawings/drawings",
@@ -530,7 +598,7 @@
           ]
         },
         "Action Plans": {
-          "endpointCount": 170,
+          "endpointCount": 171,
           "tags": [
             "Project Management/Action Plans/action-plans",
             "Project Management/Action Plans/action-plan-change-history-events",
@@ -651,51 +719,6 @@
             "Project Management/Schedule (Legacy)/calendar-events"
           ]
         },
-        "Field Productivity": {
-          "endpointCount": 212,
-          "tags": [
-            "Project Management/Field Productivity/timesheets",
-            "Project Management/Field Productivity/timesheets-filters",
-            "Project Management/Field Productivity/timesheet-to-budget-configuration",
-            "Project Management/Field Productivity/timecards",
-            "Project Management/Field Productivity/timecard-entries",
-            "Project Management/Field Productivity/time-types",
-            "Project Management/Field Productivity/time-and-material-timecard",
-            "Project Management/Field Productivity/time-and-material-signature",
-            "Project Management/Field Productivity/time-and-material-notification",
-            "Project Management/Field Productivity/time-and-material-equipment-log",
-            "Project Management/Field Productivity/time-and-material-entry",
-            "Project Management/Field Productivity/time-and-material-attachment",
-            "Project Management/Field Productivity/task-codes-field-productivity",
-            "Project Management/Field Productivity/rounding-configuration",
-            "Project Management/Field Productivity/material",
-            "Project Management/Field Productivity/managed-equipment-attachment",
-            "Project Management/Field Productivity/managed-equipment---project-level",
-            "Project Management/Field Productivity/managed-equipment---company-level",
-            "Project Management/Field Productivity/gps-positions",
-            "Project Management/Field Productivity/equipment-type",
-            "Project Management/Field Productivity/equipment-timecard-entries",
-            "Project Management/Field Productivity/equipment-model",
-            "Project Management/Field Productivity/equipment-make",
-            "Project Management/Field Productivity/equipment-maintenance-log",
-            "Project Management/Field Productivity/equipment-log",
-            "Project Management/Field Productivity/equipment-category",
-            "Project Management/Field Productivity/company-managed-equipment-maintenance-log-attachment",
-            "Project Management/Field Productivity/actual-production-quantities"
-          ]
-        },
-        "RFI": {
-          "endpointCount": 37,
-          "tags": [
-            "Project Management/RFI/rfis",
-            "Project Management/RFI/rfis-default-distribution",
-            "Project Management/RFI/replies",
-            "Project Management/RFI/potential-rfi-managers",
-            "Project Management/RFI/potential-assignees",
-            "Project Management/RFI/filter-options",
-            "Project Management/RFI/advanced-exports"
-          ]
-        },
         "Observations": {
           "endpointCount": 28,
           "tags": [
@@ -731,21 +754,36 @@
           ]
         },
         "Document Markup": {
-          "endpointCount": 43,
+          "endpointCount": 113,
           "tags": [
             "Project Management/Document Markup/document-markup",
+            "Project Management/Document Markup/preprocess-project-file",
+            "Project Management/Document Markup/preprocess-company-file",
+            "Project Management/Document Markup/file-thumbnails",
+            "Project Management/Document Markup/file-thumbnails-bulk",
             "Project Management/Document Markup/layer",
             "Project Management/Document Markup/group",
             "Project Management/Document Markup/context",
-            "Project Management/Document Markup/markup-stamp",
             "Project Management/Document Markup/markups",
+            "Project Management/Document Markup/markup-stamp",
+            "Project Management/Document Markup/markup-indicator",
             "Project Management/Document Markup/markup-groups",
             "Project Management/Document Markup/document-info",
             "Project Management/Document Markup/viewer-permissions"
           ]
         },
+        "Document Management": {
+          "endpointCount": 8,
+          "tags": [
+            "Project Management/Document Management/project-upload-requirements",
+            "Project Management/Document Management/project-metadata-values",
+            "Project Management/Document Management/project-fields",
+            "Project Management/Document Management/document-uploads",
+            "Project Management/Document Management/document-revisions"
+          ]
+        },
         "Scheduling": {
-          "endpointCount": 16,
+          "endpointCount": 18,
           "tags": [
             "Project Management/Scheduling/timeline-events",
             "Project Management/Scheduling/schedules",
@@ -758,38 +796,18 @@
           ]
         }
       },
-      "totalEndpoints": 1322
-    },
-    "Resource Management": {
-      "modules": {
-        "Resource Planning": {
-          "endpointCount": 73,
-          "tags": [
-            "Resource Management/Resource Planning/time-off",
-            "Resource Management/Resource Planning/tags",
-            "Resource Management/Resource Planning/resource-requests",
-            "Resource Management/Resource Planning/resource-planning-reports",
-            "Resource Management/Resource Planning/resource-planning-projects",
-            "Resource Management/Resource Planning/resource-planning-notification-profiles",
-            "Resource Management/Resource Planning/permission-levels",
-            "Resource Management/Resource Planning/people",
-            "Resource Management/Resource Planning/job-titles",
-            "Resource Management/Resource Planning/groups",
-            "Resource Management/Resource Planning/assignments"
-          ]
-        }
-      },
-      "totalEndpoints": 73
+      "totalEndpoints": 1471
     },
     "Preconstruction": {
       "modules": {
         "Bid Management": {
-          "endpointCount": 35,
+          "endpointCount": 46,
           "tags": [
+            "Preconstruction/Bid Management/project-area-bids",
+            "Preconstruction/Bid Management/bids",
             "Preconstruction/Bid Management/project-bid-packages",
             "Preconstruction/Bid Management/company-bid-packages",
             "Preconstruction/Bid Management/company-bid-forms",
-            "Preconstruction/Bid Management/bids",
             "Preconstruction/Bid Management/bid-uploads",
             "Preconstruction/Bid Management/bid-package-documents",
             "Preconstruction/Bid Management/bid-forms",
@@ -830,8 +848,10 @@
           ]
         },
         "Estimating": {
-          "endpointCount": 27,
+          "endpointCount": 31,
           "tags": [
+            "Preconstruction/Estimating/estimating-settings",
+            "Preconstruction/Estimating/estimating-projects",
             "Preconstruction/Estimating/estimating-project-proposals",
             "Preconstruction/Estimating/estimating-project-project-tasks",
             "Preconstruction/Estimating/estimating-project-notes",
@@ -858,7 +878,67 @@
           ]
         }
       },
-      "totalEndpoints": 164
+      "totalEndpoints": 179
+    },
+    "Resource Management": {
+      "modules": {
+        "Resource Planning": {
+          "endpointCount": 75,
+          "tags": [
+            "Resource Management/Resource Planning/time-off",
+            "Resource Management/Resource Planning/tags",
+            "Resource Management/Resource Planning/resource-requests",
+            "Resource Management/Resource Planning/resource-planning-reports",
+            "Resource Management/Resource Planning/resource-planning-projects",
+            "Resource Management/Resource Planning/resource-planning-notification-profiles",
+            "Resource Management/Resource Planning/permission-levels",
+            "Resource Management/Resource Planning/people",
+            "Resource Management/Resource Planning/job-titles",
+            "Resource Management/Resource Planning/groups",
+            "Resource Management/Resource Planning/assignments"
+          ]
+        },
+        "Telematics": {
+          "endpointCount": 3,
+          "tags": [
+            "Resource Management/Telematics/telematics"
+          ]
+        },
+        "Equipment": {
+          "endpointCount": 98,
+          "tags": [
+            "Resource Management/Equipment/unmanaged-equipment",
+            "Resource Management/Equipment/type",
+            "Resource Management/Equipment/status",
+            "Resource Management/Equipment/project-association",
+            "Resource Management/Equipment/model",
+            "Resource Management/Equipment/make",
+            "Resource Management/Equipment/field-sets",
+            "Resource Management/Equipment/equipment",
+            "Resource Management/Equipment/equipment-maintenance",
+            "Resource Management/Equipment/category",
+            "Resource Management/Equipment/attachment"
+          ]
+        },
+        "Materials Management": {
+          "endpointCount": 234,
+          "tags": [
+            "Resource Management/Materials Management/transfers",
+            "Resource Management/Materials Management/shipments",
+            "Resource Management/Materials Management/recyclebin",
+            "Resource Management/Materials Management/receipts",
+            "Resource Management/Materials Management/purchaseorders",
+            "Resource Management/Materials Management/materials",
+            "Resource Management/Materials Management/materialrequirements",
+            "Resource Management/Materials Management/labels",
+            "Resource Management/Materials Management/issuing",
+            "Resource Management/Materials Management/interprojecttransfers",
+            "Resource Management/Materials Management/defects",
+            "Resource Management/Materials Management/adjustments"
+          ]
+        }
+      },
+      "totalEndpoints": 410
     },
     "Procore Helix": {
       "modules": {
@@ -872,6 +952,6 @@
       "totalEndpoints": 1
     }
   },
-  "totalEndpoints": 2636,
-  "generatedAt": "2026-05-08T05:07:50.966Z"
+  "totalEndpoints": 3155,
+  "generatedAt": "2026-08-05T03:39:18.521Z"
 }

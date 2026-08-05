@@ -1,11 +1,20 @@
 /**
- * Builds rich, structured tool descriptions and parameter docs for high
- * TDQS (Tool Definition Quality Score) scoring on Glama and similar MCP
- * directories. Annotations and titles live in annotation-builder.ts.
+ * Builds rich, structured tool descriptions for high TDQS (Tool Definition
+ * Quality Score) scoring on Glama and similar MCP directories. Annotations and
+ * titles live in annotation-builder.ts, per-parameter prose in
+ * param-descriptions.ts, and the return/side-effect sentence in
+ * behavior-builder.ts.
  *
- * Covers: Purpose Clarity, Usage Guidelines, Behavioral Transparency,
- * Parameter Semantics, and Contextual Completeness.
+ * Each emitted sentence targets a distinct scoring dimension and must not
+ * restate an earlier one:
+ *   1. Purpose Clarity        — what the endpoint acts on, named precisely
+ *   2. Usage Guidelines       — when to reach for it, and what to resolve first
+ *   3. Behavioral Transparency— what comes back, what changes, how it fails
+ *   4. Parameter Semantics    — required inputs
+ *   5. Contextual Completeness— where it sits in the Procore API surface
  */
+import { deriveResource, articleFor, ResourceLabel } from "./resource-label.js";
+import { buildBehavior } from "./behavior-builder.js";
 
 interface ManifestEntry {
   toolName: string;
@@ -17,283 +26,194 @@ interface ManifestEntry {
   module: string;
   version: string;
   params: Array<{ name: string; required: boolean; source?: string }>;
+  bodyWrapper?: string;
+  returnsCollection?: boolean;
+  deprecated?: boolean;
+  deprecatedAt?: string;
+  sunset?: string;
 }
 
 const DESCRIPTION_MAX = 2048;
 
-/**
- * Build a rich tool description from manifest entry data.
- * Structured to maximize scores across all TDQS dimensions.
- */
+/** Identifiers the server can supply itself via procore_set_config. */
+const CONFIG_BACKED = new Set(["company_id", "project_id"]);
+
 export function buildDescription(entry: ManifestEntry): string {
+  const resource = deriveResource(entry.summary, entry.path, entry.module);
   const parts: string[] = [];
 
-  // Purpose Clarity: prefer the longer OAS description over the bare summary.
-  const rawPurpose =
-    entry.description && entry.description.length > entry.summary.length + 5
-      ? entry.description
-      : entry.summary;
-  const purpose = rawPurpose.replace(/\n+/g, " ").replace(/\s+/g, " ").trim();
-  parts.push(purpose.endsWith(".") ? purpose : purpose + ".");
+  parts.push(buildPurpose(entry, resource));
 
-  // Usage Guidelines: explain when an LLM should reach for this tool.
-  const useCase = buildUseCase(entry);
-  if (useCase) parts.push(useCase);
+  const deprecation = buildDeprecationNotice(entry);
+  if (deprecation) parts.push(deprecation);
 
-  // Behavioral Transparency: what the call returns / what it changes.
-  parts.push(buildBehavioralContext(entry));
+  const usage = buildUsageGuidance(entry, resource);
+  if (usage) parts.push(usage);
 
-  // Parameter Semantics: required params front-and-center.
+  parts.push(buildBehavior(entry, resource));
+
   const required = entry.params.filter((p) => p.required).map((p) => p.name);
   if (required.length > 0) {
     parts.push(`Required parameters: ${required.join(", ")}.`);
   }
 
-  // Contextual Completeness: where this lives in the Procore API surface.
   const versionPart =
     entry.version && entry.version !== "v1.0" && entry.version !== "unknown"
       ? ` (${entry.version})`
       : "";
   parts.push(`Procore API${versionPart}: ${entry.category} > ${entry.module}.`);
-
   parts.push(`Endpoint: ${entry.method} ${entry.path}`);
 
   return parts.join(" ").slice(0, DESCRIPTION_MAX);
 }
 
-/** Resource-aware "use this when" sentence derived from name + module. */
-function buildUseCase(entry: ManifestEntry): string {
-  const name = entry.toolName.toLowerCase();
-  const resource = inferResourceLabel(entry);
-  const m = entry.method;
+/**
+ * Sentence 1. Procore's own prose wins when it says more than the title;
+ * otherwise synthesize a sentence naming the real resource.
+ */
+function buildPurpose(entry: ManifestEntry, resource: ResourceLabel): string {
+  const raw = trimToWholeSentence(
+    entry.description?.replace(/\s+/g, " ").trim() ?? ""
+  );
+  const summary = entry.summary?.replace(/\s+/g, " ").trim() ?? "";
+  const hasOwnProse = raw.length > summary.length + 5;
 
-  if (m === "GET") {
-    if (
-      name.startsWith("list_") ||
-      name.startsWith("index_") ||
-      name.startsWith("sync_")
-    ) {
-      return `Use this to enumerate ${resource} when you need a paginated overview, to find IDs, or to filter by query parameters.`;
-    }
-    if (name.startsWith("show_") || name.startsWith("get_") || name.startsWith("retrieve_") || name.startsWith("fetch_")) {
-      return `Use this to fetch the full details of a specific ${resource} by its identifier.`;
-    }
-    if (name.includes("filter_option") || name.includes("filter_value")) {
-      return `Use this to populate a filter UI with the valid values for ${resource}.`;
-    }
-    if (name.includes("download") || name.includes("export") || name.includes("pdf") || name.includes("csv")) {
-      return `Use this to retrieve a downloadable file or export URL for ${resource}.`;
-    }
-    return `Use this to read information about ${resource} from Procore.`;
-  }
-  if (m === "POST") {
-    if (name.startsWith("create_") || name.startsWith("add_")) {
-      return `Use this to create a new ${resource} in Procore.`;
-    }
-    if (name.startsWith("bulk_create")) {
-      return `Use this to create many ${resource} records in a single request.`;
-    }
-    if (name.startsWith("bulk_update")) {
-      return `Use this to update many ${resource} records in a single request.`;
-    }
-    if (name.startsWith("bulk_delete") || name.startsWith("bulk_remove") || name.startsWith("bulk_destroy")) {
-      return `Use this to delete many ${resource} records in a single request — this cannot be undone.`;
-    }
-    if (name.startsWith("clone_") || name.startsWith("copy_") || name.startsWith("duplicate_")) {
-      return `Use this to duplicate an existing ${resource} as a new record.`;
-    }
-    if (name.startsWith("send_") || name.startsWith("invite_") || name.includes("email")) {
-      return `Use this to dispatch the notification or message related to ${resource}.`;
-    }
-    if (name.startsWith("revoke_") || name.startsWith("disable_") || name.startsWith("deactivate_")) {
-      return `Use this to revoke or disable the specified ${resource}.`;
-    }
-    if (name.startsWith("restore_") || name.startsWith("reactivate_")) {
-      return `Use this to restore or reactivate a previously deleted ${resource}.`;
-    }
-    if (name.startsWith("sync_")) {
-      return `Use this to bulk-synchronize ${resource} with an external system of record.`;
-    }
-    return `Use this to perform the ${prettyAction(name)} action on ${resource}.`;
-  }
-  if (m === "PATCH" || m === "PUT") {
-    if (name.startsWith("send_") || name.includes("invite") || name.includes("email")) {
-      return `Use this to dispatch the notification or message related to ${resource}.`;
-    }
-    if (name.startsWith("move_") || name.startsWith("reorder_")) {
-      return `Use this to move or reorder a ${resource} within its parent collection.`;
-    }
-    return `Use this to update an existing ${resource} (only the supplied fields are changed).`;
-  }
-  if (m === "DELETE") {
-    return `Use this to permanently delete the specified ${resource}. This cannot be undone.`;
-  }
-  return "";
-}
-
-function buildBehavioralContext(entry: ManifestEntry): string {
-  const name = entry.toolName.toLowerCase();
-  const resource = inferResourceLabel(entry);
-  const m = entry.method;
-
-  switch (m) {
-    case "GET": {
-      const isList =
-        name.startsWith("list_") ||
-        name.startsWith("sync_") ||
-        name.startsWith("index_") ||
-        /\/[a-z_]+$/.test(entry.path);
-      if (name.includes("download") || name.includes("export") || name.includes("pdf")) {
-        return `Returns a JSON object with the file contents or download URL for ${resource}.`;
-      }
-      if (name.includes("filter_option") || name.includes("filter_value")) {
-        return `Returns a JSON array of available filter values for ${resource}.`;
-      }
-      if (isList) {
-        return `Returns a paginated JSON array of ${resource}. Use page and per_page to control pagination; the response includes pagination metadata.`;
-      }
-      return `Returns a JSON object describing the requested ${resource}.`;
-    }
-    case "POST": {
-      if (name.includes("revoke") || name.includes("disable") || name.includes("deactivate")) {
-        return "Executes the action and returns a confirmation. Repeated calls are safe.";
-      }
-      if (name.includes("send") || name.includes("invite") || name.includes("email")) {
-        return "Dispatches the message and returns a confirmation. Repeated calls may resend.";
-      }
-      if (name.includes("sync")) {
-        return `Synchronizes ${resource} with the supplied data and returns the updated server-side state.`;
-      }
-      if (name.startsWith("bulk_create")) {
-        return `Creates many ${resource} records in one request and returns the created collection (HTTP 201). Partial failures may occur — check each item's status.`;
-      }
-      if (name.startsWith("bulk_update")) {
-        return `Updates many ${resource} records in one request and returns the updated collection.`;
-      }
-      if (name.startsWith("bulk_delete") || name.startsWith("bulk_destroy") || name.startsWith("bulk_remove")) {
-        return `Removes many ${resource} records in one request. This cannot be undone.`;
-      }
-      if (name.includes("export") || name.includes("download") || name.includes("pdf") || name.includes("csv")) {
-        return "Generates the export and returns a download URL or async job handle.";
-      }
-      if (name.includes("restore") || name.includes("reactivate")) {
-        return `Restores the previously deleted ${resource} and returns the recovered object.`;
-      }
-      if (name.startsWith("clone") || name.startsWith("copy") || name.startsWith("duplicate")) {
-        return `Creates a copy of the ${resource} and returns the newly created object (HTTP 201).`;
-      }
-      return `Creates a new ${resource} and returns the created object on success (HTTP 201).`;
-    }
-    case "PATCH":
-    case "PUT": {
-      if (name.includes("send") || name.includes("invite")) {
-        return "Triggers the notification and returns a confirmation.";
-      }
-      if (name.includes("move")) {
-        return `Moves the ${resource} to its new position and returns the updated object.`;
-      }
-      return `Updates the specified ${resource} and returns the modified object on success.`;
-    }
-    case "DELETE":
-      return `Permanently removes the specified ${resource}. This action cannot be undone.`;
-    default:
-      return "";
-  }
-}
-
-/** Infer a human-readable resource label for behavioral text. */
-function inferResourceLabel(entry: ManifestEntry): string {
-  const moduleName = entry.module || "Procore";
-  const lower = moduleName.toLowerCase();
-  if (lower === "procore" || !moduleName) return "Procore records";
-  return moduleName.endsWith("s") ? moduleName : `${moduleName} records`;
-}
-
-function prettyAction(name: string): string {
-  return name.split("_").slice(0, 2).join(" ").replace(/_/g, " ");
+  const text = hasOwnProse ? raw : synthesizePurpose(entry, resource);
+  return text.endsWith(".") || text.endsWith("!") ? text : text + ".";
 }
 
 /**
- * Enrich parameter descriptions that are too bare or just restate the name,
- * and prepend a source hint so callers know where the value travels.
+ * Catalog generation caps Procore's prose with a trailing "...", which can
+ * leave a sentence severed mid-clause. Roll back to the last full sentence so
+ * the purpose line always reads as finished prose.
  */
-export function enrichParamDescription(
-  name: string,
-  description: string,
-  moduleName: string,
-  source?: "path" | "query" | "body"
-): string {
-  const base = enrichBase(name, description, moduleName);
-  return prefixWithSource(base, source);
+function trimToWholeSentence(text: string): string {
+  if (!text.endsWith("...")) return text;
+  const body = text.slice(0, -3);
+  const lastStop = Math.max(
+    body.lastIndexOf(". "),
+    body.lastIndexOf("! "),
+    body.lastIndexOf("? ")
+  );
+  // Only roll back if a decent amount of prose survives.
+  if (lastStop > 80) return body.slice(0, lastStop + 1);
+  return body.trimEnd().replace(/[,;:]$/, "") + ".";
 }
 
-function enrichBase(
-  name: string,
-  description: string,
-  moduleName: string
+function synthesizePurpose(
+  entry: ManifestEntry,
+  resource: ResourceLabel
 ): string {
-  if (description && description.length >= 20) return description;
+  const { singular, plural } = resource;
+  const a = articleFor(singular);
+  const scope = scopePhrase(entry.path);
 
-  const known: Record<string, string> = {
-    id: `Unique identifier of the ${moduleName} resource`,
-    project_id: "Unique identifier for the Procore project",
-    company_id: "Unique identifier for the Procore company",
-    page: "Page number for paginated results (default: 1, 1-indexed)",
-    per_page: "Number of items per page (default: 100, max: 100)",
-    token: "OAuth2 access token string to be revoked",
-    client_id: "OAuth application client ID from the Procore Developer Portal",
-    client_secret:
-      "OAuth application client secret from the Procore Developer Portal",
-    view: "Response detail level: 'normal' (standard fields), 'extended' (all fields), or 'name' (minimal)",
-    sort: "Sort order for results. Prefix the field name with '-' for descending",
-    zip: "Postal/ZIP code",
-    due_date: "Due date in YYYY-MM-DD format",
-    bid_due_date: "Bid due date in YYYY-MM-DD format",
-  };
-
-  if (known[name]) return known[name];
-
-  if (name.endsWith("_id")) {
-    const resource = name.replace(/_id$/, "").replace(/_/g, " ");
-    return `Unique identifier of the ${resource}`;
+  switch (entry.method) {
+    case "GET":
+      return entry.returnsCollection
+        ? `Lists the ${plural} recorded ${scope}`
+        : `Retrieves ${a} single ${singular} ${scope}`;
+    case "POST":
+      return `Creates ${a} new ${singular} ${scope}`;
+    case "PATCH":
+    case "PUT":
+      return `Updates an existing ${singular} ${scope}`;
+    case "DELETE":
+      return `Deletes ${a} ${singular} ${scope}`;
+    default:
+      return `Operates on ${plural} ${scope}`;
   }
-  if (name.endsWith("_ids")) {
-    const resource = name.replace(/_ids$/, "").replace(/_/g, " ");
-    return `Array of ${resource} identifiers`;
-  }
-  if (name.endsWith("_date")) {
-    const field = name.replace(/_/g, " ");
-    return `The ${field} in YYYY-MM-DD format`;
-  }
-  if (name.startsWith("filters__") || name.startsWith("filters[")) {
-    const field = name
-      .replace(/^filters[_[]+/, "")
-      .replace(/\]$/, "")
-      .replace(/_/g, " ");
-    return `Filter results by ${field}`;
-  }
-
-  const nameWords = name.replace(/_/g, " ");
-  const descNorm = (description || "").toLowerCase().replace(/_/g, " ").trim();
-  if (!description || descNorm === nameWords.toLowerCase()) {
-    return `The ${nameWords} for this ${moduleName} operation`;
-  }
-
-  return description || `The ${nameWords} parameter`;
 }
 
-function prefixWithSource(
-  text: string,
-  source?: "path" | "query" | "body"
+/** "in the specified project" / "for the specified company" / "in Procore". */
+function scopePhrase(path: string): string {
+  if (path.includes("/projects/{")) return "in the specified Procore project";
+  if (path.includes("/companies/{")) return "for the specified Procore company";
+  return "in Procore";
+}
+
+function buildDeprecationNotice(entry: ManifestEntry): string {
+  if (!entry.deprecated) return "";
+  const sunset = entry.sunset
+    ? ` It is scheduled for removal on ${entry.sunset}`
+    : " It may be removed without further notice";
+  return `DEPRECATED: Procore has deprecated this endpoint${entry.deprecatedAt ? ` (as of ${entry.deprecatedAt})` : ""}.${sunset}; prefer a newer version of this resource where one exists, and use procore_search_endpoints to find it.`;
+}
+
+/**
+ * Sentence 3. Carries information the purpose and behavior sentences do not:
+ * which call to make first, and how to keep the result usable.
+ */
+function buildUsageGuidance(
+  entry: ManifestEntry,
+  resource: ResourceLabel
 ): string {
-  if (!source) return text;
-  const prefix =
-    source === "path"
-      ? "URL path parameter — "
-      : source === "query"
-        ? "Query string parameter — "
-        : "JSON request body field — ";
-  // Avoid double-prefixing if generation pipeline already added it.
-  if (text.startsWith(prefix)) return text;
-  return prefix + text.charAt(0).toLowerCase() + text.slice(1);
+  const clauses: string[] = [];
+  const { singular, plural } = resource;
+  const name = entry.toolName.toLowerCase();
+
+  // When to pick this tool.
+  if (entry.method === "GET") {
+    clauses.push(
+      entry.returnsCollection
+        ? `Use this to discover ${plural} or to look up the id of one before calling a tool that needs it`
+        : `Use this when you already know which ${singular} you want and need its full field set`
+    );
+  } else if (entry.method === "DELETE") {
+    clauses.push(
+      `Confirm the target id with the matching show or list tool before calling`
+    );
+  } else if (name.startsWith("bulk_")) {
+    clauses.push(
+      `Prefer this over repeated single-record calls when handling many ${plural} at once`
+    );
+  } else if (entry.method === "PATCH" || entry.method === "PUT") {
+    clauses.push(
+      `Send only the fields you intend to change; omitted fields keep their current values`
+    );
+  }
+
+  // Body fields are flattened into the tool's arguments, so say where they go.
+  if (entry.method !== "GET" && entry.bodyWrapper) {
+    clauses.push(
+      `Pass the record's fields as top-level arguments — they are nested under "${entry.bodyWrapper}" in the request payload for you`
+    );
+  }
+
+  // What has to be resolved first.
+  const prerequisite = buildPrerequisite(entry);
+  if (prerequisite) clauses.push(prerequisite);
+
+  if (clauses.length === 0) return "";
+  return clauses.join(". ") + ".";
+}
+
+/** Names the parent identifiers the caller must have in hand. */
+function buildPrerequisite(entry: ManifestEntry): string {
+  const pathIds = entry.params
+    .filter((p) => p.source === "path" && p.required)
+    .map((p) => p.name);
+  if (pathIds.length === 0) return "";
+
+  const configIds = pathIds.filter((n) => CONFIG_BACKED.has(n));
+  const lookupIds = pathIds.filter((n) => !CONFIG_BACKED.has(n));
+
+  const clauses: string[] = [];
+  if (configIds.length === 1) {
+    clauses.push(
+      `${configIds[0]} defaults to the value set by procore_set_config when omitted`
+    );
+  } else if (configIds.length > 1) {
+    clauses.push(
+      `${configIds.join(" and ")} default to the values set by procore_set_config when omitted`
+    );
+  }
+  if (lookupIds.length > 0) {
+    clauses.push(
+      `${lookupIds.join(", ")} must identify ${
+        lookupIds.length === 1 ? "an existing parent record" : "existing parent records"
+      } — resolve ${lookupIds.length === 1 ? "it" : "them"} with the matching list tool first`
+    );
+  }
+  return clauses.join(", and ");
 }
