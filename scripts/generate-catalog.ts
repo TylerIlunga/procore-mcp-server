@@ -48,6 +48,9 @@ interface CatalogEntry {
   /** True when the 2xx response is a JSON array (a collection), so callers
    *  know pagination applies. Derived from the response schema, not the path. */
   returnsCollection: boolean;
+  /** Response property that wraps the collection array. Procore's v2.x
+   *  endpoints envelope their payload as `{ data: [...] }`. */
+  collectionEnvelope?: string;
   deprecated: boolean;
   deprecatedAt?: string;
   sunset?: string;
@@ -154,29 +157,58 @@ function simplifySchema(
   return result;
 }
 
+/** Response properties that conventionally wrap the real payload. */
+const ENVELOPE_KEYS = ["data", "items", "results", "records", "entries"] as const;
+
+type CollectionVerdict =
+  | { kind: "collection"; envelope?: string }
+  | { kind: "single" }
+  /** An envelope whose element the spec draws as one object. Procore's v2
+   *  specs routinely do this on genuine list endpoints, so the caller must
+   *  weigh the summary before concluding "single". */
+  | { kind: "ambiguous-envelope"; envelope: string }
+  | null;
+
 /**
  * Decide whether a 2xx response body is a collection. Unwraps allOf/oneOf/anyOf
- * so wrapper schemas don't hide an array. Returns null when the spec gives no
- * usable signal, in which case the caller falls back to path/summary shape.
+ * and looks inside `{ data: ... }`-style envelopes so a wrapper object doesn't
+ * hide an array. Returns null when the spec gives no usable signal, in which
+ * case the caller falls back to path/summary shape.
  */
 function schemaIsCollection(
   schema: Record<string, unknown> | undefined,
   depth = 0
-): boolean | null {
+): CollectionVerdict {
   if (!schema || depth > 4) return null;
-  if (schema.type === "array") return true;
-  if (schema.type === "object") return false;
+  if (schema.type === "array") return { kind: "collection" };
+
+  if (schema.type === "object") {
+    const props = (schema.properties || {}) as Record<
+      string,
+      Record<string, unknown>
+    >;
+    for (const key of ENVELOPE_KEYS) {
+      const child = props[key];
+      if (!child) continue;
+      const inner = schemaIsCollection(child, depth + 1);
+      if (inner?.kind === "collection") {
+        return { kind: "collection", envelope: key };
+      }
+      return { kind: "ambiguous-envelope", envelope: key };
+    }
+    return { kind: "single" };
+  }
 
   for (const key of ["oneOf", "anyOf", "allOf"] as const) {
     const branches = schema[key] as Record<string, unknown>[] | undefined;
     if (!Array.isArray(branches)) continue;
-    let sawObject = false;
+    let fallback: CollectionVerdict = null;
     for (const branch of branches) {
       const verdict = schemaIsCollection(branch, depth + 1);
-      if (verdict === true) return true;
-      if (verdict === false) sawObject = true;
+      if (verdict?.kind === "collection") return verdict;
+      if (verdict && !fallback) fallback = verdict;
     }
-    if (sawObject) return false;
+    if (fallback) return fallback;
   }
   return null;
 }
@@ -187,14 +219,17 @@ function pathEndsInCollection(path: string): boolean {
   return !last.startsWith("{");
 }
 
-const LIST_SUMMARY = /^(list|index|get all|retrieve all|show all|return a list|returns a list|get a list)\b/i;
+const LIST_SUMMARY =
+  /^(list|lists|index|search|get all|gets all|retrieve all|retrieves all|return all|returns all|show all|shows all|return a list|returns a list|get a list|gets a list|get the list)\b/i;
 
 function detectReturnsCollection(
   operation: OASOperation,
   method: string,
-  path: string
-): boolean {
-  if (method !== "get") return false;
+  path: string,
+  /** The endpoint accepts page/per_page — only collections are paginated. */
+  hasPagination: boolean
+): { returnsCollection: boolean; collectionEnvelope?: string } {
+  if (method !== "get") return { returnsCollection: false };
 
   const responses = (operation.responses || {}) as Record<
     string,
@@ -204,13 +239,71 @@ function detectReturnsCollection(
   const schema = ok?.content?.["application/json"]?.schema;
 
   const verdict = schemaIsCollection(schema);
-  if (verdict !== null) return verdict;
+  if (verdict?.kind === "collection") {
+    return { returnsCollection: true, collectionEnvelope: verdict.envelope };
+  }
 
-  // No usable schema. Trust an explicit "List ..." summary; otherwise assume a
-  // single object. Guessing from path shape alone is what previously mislabelled
-  // singleton config endpoints as paginated collections.
-  if (!pathEndsInCollection(path)) return false;
-  return LIST_SUMMARY.test(operation.summary || "");
+  const summaryLooksList = LIST_SUMMARY.test(operation.summary || "");
+  const collectionPath = pathEndsInCollection(path);
+
+  if (verdict?.kind === "ambiguous-envelope") {
+    // The spec draws one enveloped element, but v2 list endpoints are often
+    // documented that way. Declared pagination settles it — a single record
+    // is never paged — and an explicit list summary on a collection path is
+    // the next strongest signal.
+    return hasPagination || (summaryLooksList && collectionPath)
+      ? { returnsCollection: true, collectionEnvelope: verdict.envelope }
+      : { returnsCollection: false };
+  }
+  if (verdict?.kind === "single") return { returnsCollection: false };
+
+  // No usable schema. Trust declared pagination, then an explicit "List ..."
+  // summary; otherwise assume a single object. Guessing from path shape alone
+  // is what previously mislabelled singleton config endpoints as paginated.
+  if (!collectionPath) return { returnsCollection: false };
+  return { returnsCollection: hasPagination || summaryLooksList };
+}
+
+/**
+ * Spelling fixes for typos that ship in Procore's OAS prose. Tool names,
+ * titles, and descriptions all derive from this text, so repair it at the
+ * source. Each fix preserves a leading capital.
+ */
+const TYPO_FIXES: Array<[RegExp, string]> = [
+  [/\basyncronous\b/gi, "asynchronous"],
+  [/\bavailablility\b/gi, "availability"],
+  [/\brecyled\b/gi, "recycled"],
+  [/\bseperate\b/gi, "separate"],
+  [/\boccured\b/gi, "occurred"],
+  [/\bsucessfully\b/gi, "successfully"],
+  [/\bdetete\b/gi, "delete"],
+  [/\bupdats\b/gi, "updates"],
+  [/\bassociat\b/gi, "associate"],
+  // "Restored a deleted X" documents a restore endpoint in the past tense.
+  [/^restored\b/i, "Restores"],
+  // "Make a Tag from being Available to a Group" is a mangled negation of the
+  // paired removal endpoint; the POST grants availability. Matches with or
+  // without the article so the operation title is repaired too.
+  [/\b(makes?)\s+((?:a|an)\s+)?(.+?)\s+from being available to\b/gi, "$1 $2$3 available to"],
+];
+
+function fixTypos(text: string): string {
+  if (!text) return text;
+  let out = text;
+  for (const [pattern, replacement] of TYPO_FIXES) {
+    // A replacer function makes "$1" literal, so rewrites that reference
+    // capture groups must use the plain string form.
+    if (/\$\d/.test(replacement)) {
+      out = out.replace(pattern, replacement);
+      continue;
+    }
+    out = out.replace(pattern, (match) =>
+      match[0] === match[0].toUpperCase()
+        ? replacement[0].toUpperCase() + replacement.slice(1)
+        : replacement
+    );
+  }
+  return out;
 }
 
 function main() {
@@ -282,11 +375,20 @@ function main() {
       }
 
       // Build catalog entry
+      const hasPagination = dedupedParams.some(
+        (p) => p.in === "query" && (p.name === "page" || p.name === "per_page")
+      );
+      const collection = detectReturnsCollection(
+        operation,
+        method,
+        path,
+        hasPagination
+      );
       const entry: CatalogEntry = {
         operationId: operation.operationId,
         method: method.toUpperCase(),
         path,
-        summary: truncate(operation.summary || "", 200),
+        summary: truncate(fixTypos(operation.summary || ""), 200),
         tag,
         category,
         module,
@@ -295,7 +397,8 @@ function main() {
         requiredParams,
         hasRequestBody,
         contentType,
-        returnsCollection: detectReturnsCollection(operation, method, path),
+        returnsCollection: collection.returnsCollection,
+        collectionEnvelope: collection.collectionEnvelope,
         deprecated: operation.deprecated === true,
         deprecatedAt: operation["x-deprecated-at"],
         sunset: operation["x-sunset"],
@@ -325,8 +428,8 @@ function main() {
         operationId: operation.operationId,
         method: method.toUpperCase(),
         path,
-        summary: operation.summary || "",
-        description: truncate(operation.description || "", 800),
+        summary: fixTypos(operation.summary || ""),
+        description: truncate(fixTypos(operation.description || ""), 800),
         tag,
         deprecated: operation.deprecated === true,
         deprecatedAt: operation["x-deprecated-at"],
@@ -335,7 +438,7 @@ function main() {
           name: p.name,
           in: p.in,
           required: p.required || false,
-          description: truncate(p.description || "", 200),
+          description: truncate(fixTypos(p.description || ""), 200),
           schema: simplifySchema(p.schema as Record<string, unknown>),
         })),
         responses: {},

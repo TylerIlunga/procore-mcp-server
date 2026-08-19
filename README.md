@@ -47,6 +47,11 @@ PROCORE_CLIENT_SECRET=your_client_secret
 PROCORE_COMPANY_ID=your_company_id
 ```
 
+Optional: set `PROCORE_TOOL_MODE=meta` to serve only the 7 discovery tools
+instead of all ~2,900 generated endpoint tools. Every endpoint stays callable
+through `procore_api_call`; this keeps the tool list small for
+context-constrained MCP clients.
+
 You'll need Procore's OpenAPI spec file placed at `specs/combined_OAS.json`. This file is not included in the repo due to its size (~54MB). You can obtain it from [Procore's API documentation](https://developers.procore.com/).
 
 Build the catalog and compile TypeScript:

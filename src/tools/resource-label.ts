@@ -19,7 +19,8 @@ export interface ResourceLabel {
 const ACTION_VERBS = [
   "get a list of", "get list of", "returns a list of", "return a list of",
   "returns the list of", "return the list of", "list of", "get all", "show all",
-  "retrieve all", "return all",
+  "retrieve all", "retrieves all", "return all", "gets all", "returns all",
+  "it fetches", "it retrieves", "it gets", "it returns",
   "bulk create", "bulk update", "bulk delete", "bulk destroy", "bulk remove",
   "bulk retrieve", "bulk activation", "bulk deactivation", "batch update",
   "batch get", "find or create", "creates or updates", "create or find",
@@ -31,13 +32,26 @@ const ACTION_VERBS = [
   "enable", "deactivate", "reactivate", "close", "validate", "calculate",
   "generate", "find", "search", "check", "save", "assign", "unassign", "make",
   "toggle", "convert", "merge", "reorder", "initiate", "terminate", "restart",
-  "refresh", "withdraw", "grant", "modify", "publish", "submit", "clones",
+  "refresh", "withdraw", "grant", "modify", "publish", "submit", "recycle",
+  "verify", "consolidate", "reopen", "trigger", "perform", "mark", "link",
+  "unlink", "preview", "recalculate", "resolve", "clones",
   "deletes", "creates", "updates", "shows", "lists", "gets", "adds", "removes",
-  "returns", "return",
+  "retrieves", "fetches", "recycles", "verifies", "checks", "searches",
+  "sends", "syncs", "saves", "assigns", "unassigns", "moves", "copies",
+  "exports", "imports", "downloads", "uploads", "toggles", "converts",
+  "merges", "reorders", "restores", "restarts", "refreshes", "terminates",
+  "initiates", "generates", "calculates", "validates", "approves", "rejects",
+  "closes", "publishes", "submits", "edits", "views", "makes", "finds",
+  "destroys", "enables", "disables", "marks", "performs", "consolidates",
+  "reopens", "triggers", "recalculates", "previews", "resolves", "links",
+  "unlinks", "distribute", "distributes", "advance", "advances", "stop",
+  "stops", "transition", "transitions", "returns", "return",
 ];
 
+// "and"/"or" join compound verbs ("Close and Distribute a Submittal Log");
+// treating them as filler lets the next pass strip the second verb too.
 const LEADING_FILLER =
-  /^(a|an|the|all|of|new|single|specific|for|to|on|in|from|with|by|within|at)\s+/i;
+  /^(a|an|the|all|of|new|single|specific|for|to|on|in|from|with|by|within|at|if|whether|it|and|or)\s+/i;
 
 /**
  * Acronym stems that should render uppercase. Stored singular; the plural is
@@ -102,16 +116,40 @@ function pluralizeWord(word: string): string {
   return word + "s";
 }
 
-/** Only the final noun carries number: "action plan items" -> "action plan item". */
-function inflectLast(phrase: string, fn: (w: string) => string): string {
+/** Prepositions whose object postmodifies an earlier head noun. */
+const POSTMODIFIER_PREPS = new Set(["of", "in"]);
+const ALL_PREPS = new Set([
+  "of", "in", "for", "to", "by", "with", "from", "at", "on", "within",
+]);
+
+/**
+ * Inflect the head noun of a phrase.
+ *
+ * Usually that is the final word ("action plan items" -> "action plan item"),
+ * but an of/in phrase postmodifies an earlier head: "points of contact"
+ * singularizes to "point of contact", not "points of contacts". Words ending
+ * in "-ed" are past participles rather than nouns, so they are left alone —
+ * inflecting them produced the nonsense "enableds" and "closeds".
+ */
+function inflectHead(phrase: string, fn: (w: string) => string): string {
   const words = phrase.split(" ");
   if (words.length === 0) return phrase;
-  words[words.length - 1] = fn(words[words.length - 1]);
+
+  let target = words.length - 1;
+  const prepAt = words.findIndex((w) => ALL_PREPS.has(w.toLowerCase()));
+  if (prepAt > 0 && POSTMODIFIER_PREPS.has(words[prepAt].toLowerCase())) {
+    target = prepAt - 1;
+  }
+
+  const word = words[target];
+  if (/ed$/i.test(word) || ALL_PREPS.has(word.toLowerCase())) return phrase;
+
+  words[target] = fn(word);
   return words.join(" ");
 }
 
 /** Lowercase everything except acronyms, which keep an "RFI"/"RFIs" shape. */
-function applyCasing(phrase: string): string {
+export function applyCasing(phrase: string): string {
   return phrase
     .split(" ")
     .map((w) => {
@@ -127,6 +165,9 @@ function stripLeadingAction(text: string): string {
   // Verbs and filler can stack: "Get a list of ...", "Create a new ...".
   for (let pass = 0; pass < 4; pass++) {
     const before = out;
+    // "Bulk"/"Batch" modify whatever verb follows; drop them so the verb
+    // itself is matched ("Bulk Transition Defects" -> "Defects").
+    out = out.replace(/^(bulk|batch)\s+/i, "").trim();
     const lower = out.toLowerCase();
     for (const verb of ACTION_VERBS) {
       if (lower === verb) return "";
@@ -141,25 +182,55 @@ function stripLeadingAction(text: string): string {
   return out;
 }
 
-/** Trailing scope phrases ("for a Project", "in the specified Company"). */
+/**
+ * Trailing scope phrases ("for a Project", "in the specified Company").
+ *
+ * The determiner is mandatory. Without it this stripped at the first
+ * preposition it saw, severing the resource's own name: "Timesheet To Budget
+ * Configuration" collapsed to "Timesheet" (a different, real resource) and
+ * "Tools Enabled For Workflows" to "Tools Enabled", which then pluralized to
+ * the nonsense "enableds".
+ */
 const TRAILING_SCOPE =
-  /\s+(for|in|from|within|on|at|by|to|of|belonging to|associated with|attached to)\s+(a|an|the|this|that|its|their|specified|given|current|all)?\s*\S.*$/i;
+  /\s+(for|in|from|within|on|at|by|to|of|belonging to|associated with|attached to)\s+(a|an|the|this|that|its|their|specified|given|current|all)\s+\S.*$/i;
+
+/** Bare "... for Project" / "... in Company" — scope even without a determiner. */
+const TRAILING_SCOPE_NOUN =
+  /\s+(for|in|on|within|of|from)\s+(project|projects|company|companies|the\s+project|the\s+company)$/i;
+
+/** Trailing relative or modal clauses ("that a bulk users command queued",
+ *  "can be deleted by checking..."). These describe the resource; they are
+ *  not part of its name. */
+const TRAILING_CLAUSE =
+  /\s+(that|which|who|whose|can|cannot|could|should|must|matching|using|based)\b.*$/i;
+
+/** Manner phrases that describe how the call works, not what it acts on. */
+const TRAILING_MANNER = /\s+(in bulk|in a single request|by id|by path)$/i;
 
 function cleanSummary(summary: string): string {
   let out = summary
     .replace(/\s*\([^)]*\)\s*$/g, " ") // trailing "(Project)" / "(Company)"
+    // Possessives: "Person's Assignment History" -> "Person Assignment
+    // History". Stripping the apostrophe alone stranded a bare "s".
+    .replace(/['’]s\b/gi, "")
     .replace(/[_/]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
   out = stripLeadingAction(out);
-  const scoped = out.replace(TRAILING_SCOPE, "").trim();
-  if (scoped.length >= 3) out = scoped;
+  for (const pattern of [TRAILING_SCOPE, TRAILING_SCOPE_NOUN]) {
+    const scoped = out.replace(pattern, "").trim();
+    if (scoped.length >= 3) out = scoped;
+  }
+  for (const pattern of [TRAILING_CLAUSE, TRAILING_MANNER]) {
+    const trimmed = out.replace(pattern, "").trim();
+    if (trimmed.length >= 3) out = trimmed;
+  }
 
   // Drop any remaining punctuation and cap runaway phrases.
   out = out.replace(/[^A-Za-z0-9&\s-]/g, " ").replace(/\s+/g, " ").trim();
   const words = out.split(" ").filter(Boolean);
-  return words.slice(0, 6).join(" ");
+  return words.slice(0, 8).join(" ");
 }
 
 /** Path segments that are actions, not resources. */
@@ -208,8 +279,8 @@ export function deriveResource(
   // stripping an inline "(s)" from a summary can leave a doubled space.
   const tidy = (s: string) => s.replace(/\s+/g, " ").trim();
   return {
-    singular: tidy(applyCasing(inflectLast(base, singularizeWord))),
-    plural: tidy(applyCasing(inflectLast(base, pluralizeWord))),
+    singular: tidy(applyCasing(inflectHead(base,singularizeWord))),
+    plural: tidy(applyCasing(inflectHead(base,pluralizeWord))),
   };
 }
 

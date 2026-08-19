@@ -41,6 +41,8 @@ interface ToolManifestEntry {
   params: ToolParam[];
   bodyWrapper?: string;
   returnsCollection?: boolean;
+  /** Response property that wraps the collection array (v2.x uses "data"). */
+  collectionEnvelope?: string;
   deprecated?: boolean;
   deprecatedAt?: string;
   sunset?: string;

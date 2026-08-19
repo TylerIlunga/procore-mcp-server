@@ -1,6 +1,6 @@
 {
   "name": "procore-mcp-server",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "MCP server exposing the full Procore REST API for Claude Desktop and Claude Code",
   "author": "Tyler Ilunga",
   "license": "MIT",
@@ -22,6 +22,7 @@
     "generate": "tsx scripts/generate-catalog.ts && tsx scripts/generate-tools-manifest.ts",
     "validate": "tsx scripts/validate-catalog.ts",
     "build": "npm run generate && npm run validate && tsc",
+    "test": "tsx scripts/verify-manifest.ts",
     "start": "node dist/src/index.js",
     "auth": "tsx src/auth/setup.ts"
   },

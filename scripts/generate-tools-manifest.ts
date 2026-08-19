@@ -16,6 +16,7 @@ import {
   enrichParamDescription,
   dedupeParams,
   withSuffix,
+  collapseStutter,
 } from "./manifest-helpers.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -37,6 +38,7 @@ interface CatalogEntry {
   hasRequestBody: boolean;
   contentType: string | null;
   returnsCollection: boolean;
+  collectionEnvelope?: string;
   deprecated: boolean;
   deprecatedAt?: string;
   sunset?: string;
@@ -77,6 +79,7 @@ interface ToolManifestEntry {
   params: ToolParam[];
   bodyWrapper?: string;
   returnsCollection: boolean;
+  collectionEnvelope?: string;
   deprecated: boolean;
   deprecatedAt?: string;
   sunset?: string;
@@ -134,6 +137,7 @@ function buildManifestEntry(
     params: dedupeParams(params),
     bodyWrapper,
     returnsCollection: entry.returnsCollection,
+    collectionEnvelope: entry.collectionEnvelope,
     deprecated: entry.deprecated,
     deprecatedAt: entry.deprecatedAt,
     sunset: entry.sunset,
@@ -203,6 +207,70 @@ function dedupeByVersionedPath(manifest: ToolManifestEntry[]): ToolManifestEntry
   return kept;
 }
 
+/** "project" / "company" / "root" — the scope a path is nested under. */
+function scopeOf(path: string): string {
+  if (path.includes("/projects/{")) return "project";
+  if (path.includes("/companies/{")) return "company";
+  return "root";
+}
+
+/**
+ * The literal path segment that separates this entry from its identically
+ * named peers — e.g. the five "Check PDF generation status" endpoints differ
+ * only by parent resource (prime_change_orders, commitment_contracts, ...).
+ * A named suffix beats the opaque `_2`/`_4` numbering it replaces.
+ */
+function distinguishingSegment(
+  e: ToolManifestEntry,
+  peers: ToolManifestEntry[]
+): string | null {
+  const tokenize = (p: string) =>
+    p
+      .replace(/\/rest\/v[\d.]+\//, "/")
+      .split("/")
+      .filter((s) => s && !s.startsWith("{") && s !== "companies" && s !== "projects");
+  const mine = tokenize(e.path);
+  const others = new Set(
+    peers.filter((x) => x !== e).flatMap((x) => tokenize(x.path))
+  );
+  const distinct = mine.filter((s) => !others.has(s));
+  if (distinct.length === 0) return null;
+  // Prefer the most specific (last) segment that isn't already part of the
+  // name — `list_accepted_weather_conditions` should gain `_daily_logs`, not
+  // a redundant `_weather_conditions`.
+  const fresh = distinct.filter((s) => !e.toolName.includes(s.toLowerCase()));
+  const pick = (fresh.length > 0 ? fresh : distinct).pop()!;
+  return pick.replace(/[^a-z0-9]+/gi, "_").toLowerCase();
+}
+
+/** Rename the still-colliding members of a family with one disambiguator. */
+function applyStage(
+  entries: ToolManifestEntry[],
+  rename: (e: ToolManifestEntry, peers: ToolManifestEntry[]) => string | null
+): void {
+  const byName = new Map<string, ToolManifestEntry[]>();
+  for (const e of entries) {
+    const bucket = byName.get(e.toolName);
+    if (bucket) bucket.push(e);
+    else byName.set(e.toolName, [e]);
+  }
+  for (const group of byName.values()) {
+    if (group.length <= 1) continue;
+    for (const e of group) {
+      const next = rename(e, group);
+      if (next) e.toolName = next;
+    }
+  }
+}
+
+/**
+ * Disambiguate identically named tools with meaning-bearing suffixes, in
+ * order of how much signal each carries: scope (company vs project), API
+ * version (only when peers actually differ on it), then the path segment
+ * that tells the endpoints apart. Numbers are the last resort — an agent can
+ * choose between `..._prime_change_orders` and `..._commitment_contracts`,
+ * but not between `_2` and `_4`.
+ */
 function resolveCollisions(manifest: ToolManifestEntry[]): void {
   const nameToEntries = new Map<string, ToolManifestEntry[]>();
   for (const e of manifest) {
@@ -213,31 +281,35 @@ function resolveCollisions(manifest: ToolManifestEntry[]): void {
   for (const [name, entries] of nameToEntries) {
     if (entries.length <= 1) continue;
 
-    for (let i = 0; i < entries.length; i++) {
-      const e = entries[i];
-      let newName = name;
-
-      if (e.path.includes("/projects/{") && !name.includes("project")) {
-        newName = name + "_project";
-      } else if (e.path.includes("/companies/{") && !name.includes("company")) {
-        newName = name + "_company";
+    // Stage 1: company/project scope, only when the family actually spans
+    // scopes — a suffix every member shares distinguishes nothing.
+    if (new Set(entries.map((e) => scopeOf(e.path))).size > 1) {
+      for (const e of entries) {
+        const scope = scopeOf(e.path);
+        if (scope !== "root" && !name.includes(scope)) {
+          e.toolName = withSuffix(name, scope);
+        }
       }
-
-      if (
-        newName === name ||
-        entries.filter((x) => x.toolName === newName).length > 0
-      ) {
-        const vSuffix = e.version.replace(/\./g, "_");
-        if (!newName.endsWith(vSuffix)) newName = withSuffix(newName, vSuffix);
-      }
-
-      const allNames = manifest.map((m) => m.toolName);
-      if (allNames.filter((n) => n === newName).length > 1) {
-        newName = withSuffix(newName, String(i + 1));
-      }
-
-      e.toolName = truncateToolName(newName);
     }
+
+    // Stage 2: API version, only where the colliding peers differ on it.
+    applyStage(entries, (e, peers) => {
+      if (new Set(peers.map((p) => p.version)).size <= 1) return null;
+      const vSuffix = e.version.replace(/\./g, "_");
+      return e.toolName.endsWith(vSuffix) ? null : withSuffix(e.toolName, vSuffix);
+    });
+
+    // Stage 3: the path segment that separates this entry from its peers.
+    applyStage(entries, (e, peers) => {
+      const segment = distinguishingSegment(e, peers);
+      return segment ? collapseStutter(withSuffix(e.toolName, segment)) : null;
+    });
+
+    // Stage 4: HTTP method, for PATCH/PUT twins on the same path.
+    applyStage(entries, (e, peers) => {
+      if (new Set(peers.map((p) => p.method)).size <= 1) return null;
+      return withSuffix(e.toolName, e.method.toLowerCase());
+    });
   }
 
   // Final pass: guarantee uniqueness. Distinct endpoints can still collapse to

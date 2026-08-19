@@ -41,13 +41,30 @@ dimension, and no sentence may restate another:
 | Module | Responsibility |
 |--------|----------------|
 | `src/tools/resource-label.ts` | Names the actual resource from the OAS summary (never the category) |
-| `src/tools/description-builder.ts` | Purpose, deprecation notice, usage guidance, assembly |
+| `src/tools/purpose-builder.ts` | Verb-aware purpose synthesis (a reorder is never described as a create) |
+| `src/tools/description-builder.ts` | Deprecation notice, usage guidance, prerequisites, assembly |
 | `src/tools/behavior-builder.ts` | Return shape, side effects, failure modes |
 | `src/tools/param-descriptions.ts` | Per-parameter prose and source hints |
 | `src/tools/annotation-builder.ts` | Titles and MCP annotations |
 
-Pagination is advertised only when the OAS response schema is genuinely an
-array (`returnsCollection`), in both the description and the input schema.
+Pagination is advertised only when the endpoint genuinely returns a collection
+(`returnsCollection`), in both the description and the input schema. v2.x
+endpoints envelope their payload as `{ data: [...] }`, so the detector unwraps
+envelopes, and falls back to declared `page`/`per_page` params then the
+operation summary when the schema is ambiguous. The envelope key is recorded
+as `collectionEnvelope` and named in the behavior sentence.
+
+Two rules keep the prose honest, both enforced by `npm test`
+(`scripts/verify-manifest.ts`, which also runs in CI):
+
+- **Never claim semantics the name does not carry.** A POST named `reorder_*`
+  is not a create, a DELETE named `recycle_*` is a soft delete, and a
+  `bulk_*`/`sync_*` call is described in the plural.
+- **Name the right record.** The id closing a path is the *target*, not a
+  "parent record"; non-identifier path params (`{new_status}`) are neither.
+
+Name collisions are broken with meaning-bearing suffixes (scope, version,
+distinguishing path segment, HTTP method) before falling back to numbers.
 
 ### Key Directories
 
@@ -72,6 +89,8 @@ array (`returnsCollection`), in both the description and the input schema.
 PROCORE_CLIENT_ID     - OAuth client ID from Procore Developer Portal
 PROCORE_CLIENT_SECRET - OAuth client secret
 PROCORE_COMPANY_ID    - Default Procore company ID (integer)
+PROCORE_TOOL_MODE     - "all" (default) or "meta" (serve only the 7 discovery
+                        tools; endpoints stay reachable via procore_api_call)
 ```
 
 ## Releasing

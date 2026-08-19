@@ -10,6 +10,18 @@ import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+/** The published package version, so the MCP handshake reports the truth. */
+function packageVersion(): string {
+  try {
+    const pkg = JSON.parse(
+      readFileSync(join(__dirname, "..", "..", "package.json"), "utf8")
+    );
+    return pkg.version || "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
+
 // Load .env file manually
 function loadEnv(): void {
   // When compiled: dist/src/index.js → need ../../.env to reach project root
@@ -74,15 +86,25 @@ async function main(): Promise<void> {
   // Create MCP server
   const server = new McpServer({
     name: "procore",
-    version: "1.0.0",
+    version: packageVersion(),
   });
 
   // Register 7 meta/discovery tools
   registerTools(server);
 
-  // Register all auto-generated endpoint tools
-  const autoCount = registerAutoTools(server);
-  console.error(`Auto-registered ${autoCount} endpoint tools`);
+  // Register all auto-generated endpoint tools unless the host opted into
+  // the lean surface. PROCORE_TOOL_MODE=meta serves only the 7 discovery
+  // tools — full API coverage stays available through procore_api_call while
+  // keeping the tool list small enough for context-constrained clients.
+  let autoCount = 0;
+  if ((process.env.PROCORE_TOOL_MODE || "all").toLowerCase() !== "meta") {
+    autoCount = registerAutoTools(server);
+    console.error(`Auto-registered ${autoCount} endpoint tools`);
+  } else {
+    console.error(
+      "PROCORE_TOOL_MODE=meta — serving the 7 discovery tools only"
+    );
+  }
 
   // Connect via stdio transport
   const transport = new StdioServerTransport();
