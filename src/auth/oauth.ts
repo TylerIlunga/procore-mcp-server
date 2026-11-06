@@ -1,21 +1,40 @@
 import { TokenData, readTokens, writeTokens, isTokenExpired } from "./token-store.js";
 
+const ENVIRONMENTS = {
+  production: { auth: "https://login.procore.com", api: "https://api.procore.com" },
+  sandbox: { auth: "https://login-sandbox.procore.com", api: "https://sandbox.procore.com" },
+  "sandbox-monthly": {
+    auth: "https://login-sandbox-monthly.procore.com",
+    api: "https://api-monthly.procore.com",
+  },
+} as const;
+
+export type Environment = keyof typeof ENVIRONMENTS;
+
+/**
+ * Which Procore environment this process talks to: `production`, `sandbox`, or
+ * `sandbox-monthly`. Unset or empty stays `production` (unchanged default). The value
+ * is case-insensitive, and an unrecognized value is rejected: it used to fall through
+ * to production silently, so a typo sent credentials to the wrong environment.
+ */
+export function getEnvironment(): Environment {
+  const raw = (process.env.PROCORE_ENV || "production").trim().toLowerCase();
+  if (raw in ENVIRONMENTS) return raw as Environment;
+  throw new Error(
+    `PROCORE_ENV must be one of ${Object.keys(ENVIRONMENTS).join(", ")} (got "${raw}")`
+  );
+}
+
 function getTokenUrl(): string {
-  const env = process.env.PROCORE_ENV || "production";
-  if (env === "sandbox") return "https://login-sandbox.procore.com/oauth/token";
-  return "https://login.procore.com/oauth/token";
+  return `${ENVIRONMENTS[getEnvironment()].auth}/oauth/token`;
 }
 
 export function getAuthBaseUrl(): string {
-  const env = process.env.PROCORE_ENV || "production";
-  if (env === "sandbox") return "https://login-sandbox.procore.com";
-  return "https://login.procore.com";
+  return ENVIRONMENTS[getEnvironment()].auth;
 }
 
 export function getApiBaseUrl(): string {
-  const env = process.env.PROCORE_ENV || "production";
-  if (env === "sandbox") return "https://sandbox.procore.com";
-  return "https://api.procore.com";
+  return ENVIRONMENTS[getEnvironment()].api;
 }
 
 interface TokenResponse {
@@ -72,11 +91,13 @@ async function mintClientCredentialsToken(): Promise<AppToken> {
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Client-credentials token request failed (${res.status}): ${text}`);
+    throw new Error(
+      `Client-credentials token request failed (${res.status}): ${text.slice(0, 200)}`
+    );
   }
 
   const data = (await res.json()) as ClientCredentialsResponse;
-  if (!data.access_token || !data.expires_in) {
+  if (!data.access_token || !Number.isFinite(data.expires_in) || data.expires_in <= 0) {
     throw new Error("Client-credentials token response missing access_token or expires_in");
   }
   // Local clock + expires_in, not created_at: immune to clock skew with Procore.

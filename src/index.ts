@@ -4,7 +4,13 @@ import { registerTools } from "./tools/registry.js";
 import { registerAutoTools } from "./tools/auto-register.js";
 import { loadCatalog, loadCategories } from "./catalog/repository.js";
 import { tokensExist } from "./auth/token-store.js";
-import { getGrantType, getValidAccessToken } from "./auth/oauth.js";
+import {
+  getGrantType,
+  getValidAccessToken,
+  getEnvironment,
+  getApiBaseUrl,
+  type GrantType,
+} from "./auth/oauth.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -60,9 +66,10 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  let grant;
+  let grant: GrantType;
   try {
     grant = getGrantType();
+    console.error(`Procore environment: ${getEnvironment()} (${getApiBaseUrl()})`);
   } catch (err) {
     console.error(`ERROR: ${(err as Error).message}`);
     process.exit(1);

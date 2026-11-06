@@ -49,8 +49,17 @@ PROCORE_CLIENT_SECRET=your_client_secret
 PROCORE_COMPANY_ID=your_company_id
 ```
 
-`PROCORE_ENV` selects the Procore environment: `sandbox` or `production`. **If it is
-unset the server uses production**, so set it explicitly:
+`PROCORE_ENV` selects the Procore environment:
+
+| Value | Auth host | API host |
+|---|---|---|
+| `production` (default) | `login.procore.com` | `api.procore.com` |
+| `sandbox` | `login-sandbox.procore.com` | `sandbox.procore.com` |
+| `sandbox-monthly` | `login-sandbox-monthly.procore.com` | `api-monthly.procore.com` |
+
+**If it is unset the server uses production**, so set it explicitly. The value is
+case-insensitive; any other value is rejected at startup rather than silently falling
+back to production. The server logs the resolved environment and API host on start.
 
 ```env
 PROCORE_ENV=sandbox
