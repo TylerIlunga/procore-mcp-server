@@ -22,7 +22,7 @@
     "generate": "tsx scripts/generate-catalog.ts && tsx scripts/generate-tools-manifest.ts",
     "validate": "tsx scripts/validate-catalog.ts",
     "build": "npm run generate && npm run validate && tsc",
-    "test": "tsx scripts/verify-manifest.ts",
+    "test": "tsx scripts/verify-manifest.ts && tsx scripts/verify-auth.ts",
     "start": "node dist/src/index.js",
     "auth": "tsx src/auth/setup.ts"
   },
