@@ -26,6 +26,8 @@ A build-time parser converts Procore's OpenAPI spec into a compact catalog, then
 - A [Procore Developer Portal](https://developers.procore.com/) account
 - An OAuth app with **Authorization Code** grant type
 - Set your redirect URI to `http://localhost`
+- (Alternative, for unattended use) a Developer Managed Service Account app; see
+  [Service-account mode](#service-account-client-credentials-mode)
 
 ## Setup
 
@@ -46,6 +48,38 @@ PROCORE_CLIENT_ID=your_client_id
 PROCORE_CLIENT_SECRET=your_client_secret
 PROCORE_COMPANY_ID=your_company_id
 ```
+
+`PROCORE_ENV` selects the Procore environment:
+
+| Value | Auth host | API host |
+|---|---|---|
+| `production` (default) | `login.procore.com` | `api.procore.com` |
+| `sandbox` | `login-sandbox.procore.com` | `sandbox.procore.com` |
+| `sandbox-monthly` | `login-sandbox-monthly.procore.com` | `api-monthly.procore.com` |
+
+**If it is unset the server uses production**, so set it explicitly. The value is
+case-insensitive; any other value is rejected at startup rather than silently falling
+back to production. The server logs the resolved environment and API host on start.
+
+```env
+PROCORE_ENV=sandbox
+```
+
+### Service-account (client credentials) mode
+
+To run unattended with a Procore Developer Managed Service Account (DMSA) app instead
+of a user login, set:
+
+```env
+PROCORE_GRANT_TYPE=client_credentials
+```
+
+There is no `npm run auth` step in this mode: the server requests an app-level token at
+startup (so bad credentials fail immediately), keeps it in memory only, and requests a
+new one when it expires. Nothing is written to `~/.procore-mcp/tokens.json`. The token
+acts as the service account, so data visibility is whatever that account has been
+granted in the company it is installed in, not any individual user's. The default is
+`authorization_code`, unchanged.
 
 By default the server exposes the **7 discovery tools**, and every Procore
 endpoint is reached through `procore_api_call`. Registering a dedicated tool

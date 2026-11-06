@@ -1,6 +1,6 @@
 import { createServer, IncomingMessage, ServerResponse } from "http";
 import { exchangeCodeForTokens } from "./oauth.js";
-import { getAuthBaseUrl, getApiBaseUrl } from "./oauth.js";
+import { getAuthBaseUrl, getApiBaseUrl, getEnvironment } from "./oauth.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -46,7 +46,7 @@ async function main(): Promise<void> {
 
   const clientId = process.env.PROCORE_CLIENT_ID;
   const clientSecret = process.env.PROCORE_CLIENT_SECRET;
-  const env = process.env.PROCORE_ENV || "production";
+  const env = getEnvironment();
 
   if (!clientId || !clientSecret) {
     console.error(

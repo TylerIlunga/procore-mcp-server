@@ -1,5 +1,6 @@
 import { getRuntimeConfig } from "../../api/client.js";
 import { readTokens, isTokenExpired } from "../../auth/token-store.js";
+import { getGrantType } from "../../auth/oauth.js";
 
 export async function handleGetConfig(): Promise<string> {
   const runtimeConfig = getRuntimeConfig();
@@ -8,7 +9,10 @@ export async function handleGetConfig(): Promise<string> {
   const lines: string[] = ["## Procore MCP Server Configuration\n"];
 
   // Auth status
-  if (tokens) {
+  if (getGrantType() === "client_credentials") {
+    // App-level token lives in memory and is minted on demand; there is no token file.
+    lines.push("Auth: client_credentials grant (token held in memory, re-minted on expiry)");
+  } else if (tokens) {
     const expired = isTokenExpired(tokens);
     lines.push(
       `Auth: ${expired ? "Token expired (will auto-refresh on next call)" : "Authenticated"}`
