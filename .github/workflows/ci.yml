@@ -1,0 +1,26 @@
+name: CI
+
+# Repo-convention checks. Typecheck, catalog validation and manifest
+# invariants live in verify.yml.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  conventions:
+    name: Architecture, quality & docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Architecture lint
+        run: ./scripts/arch-lint.sh
+
+      - name: Quality scan
+        run: ./scripts/quality-scan.sh
+
+      - name: Documentation check
+        run: ./scripts/doc-check.sh
