@@ -4,6 +4,13 @@ import { registerTools } from "./tools/registry.js";
 import { registerAutoTools } from "./tools/auto-register.js";
 import { loadCatalog, loadCategories } from "./catalog/repository.js";
 import { tokensExist } from "./auth/token-store.js";
+import {
+  getGrantType,
+  getValidAccessToken,
+  getEnvironment,
+  getApiBaseUrl,
+  type GrantType,
+} from "./auth/oauth.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -59,8 +66,27 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // Check tokens exist
-  if (!tokensExist()) {
+  let grant: GrantType;
+  try {
+    grant = getGrantType();
+    console.error(`Procore environment: ${getEnvironment()} (${getApiBaseUrl()})`);
+  } catch (err) {
+    console.error(`ERROR: ${(err as Error).message}`);
+    process.exit(1);
+  }
+
+  if (grant === "client_credentials") {
+    // App-level (DMSA) token: no browser step. Mint now so bad credentials fail at
+    // startup, not on the first tool call.
+    try {
+      await getValidAccessToken();
+      console.error("Authenticated with the client_credentials grant");
+    } catch (err) {
+      console.error(`ERROR: ${(err as Error).message}`);
+      process.exit(1);
+    }
+  } else if (!tokensExist()) {
+    // Check tokens exist
     console.error(
       "ERROR: No Procore auth tokens found.\n" +
         "Run 'npm run auth' to authenticate with Procore first."
