@@ -29,7 +29,7 @@ A build-time parser converts Procore's OpenAPI spec into a compact catalog, then
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 20+ (22 or 24 LTS recommended; CI tests 20, 22 and 24)
 - A [Procore Developer Portal](https://developers.procore.com/) account
 - An OAuth app with **Authorization Code** grant type
 - Set your redirect URI to `http://localhost`

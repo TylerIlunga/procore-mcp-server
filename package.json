@@ -17,6 +17,9 @@
     "api"
   ],
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "main": "dist/index.js",
   "scripts": {
     "generate": "tsx scripts/generate-catalog.ts && tsx scripts/generate-tools-manifest.ts",
