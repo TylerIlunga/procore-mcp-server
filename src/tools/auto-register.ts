@@ -3,7 +3,7 @@
  * Each endpoint in the manifest becomes a dedicated, named tool.
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z, ZodRawShape } from "zod";
+import { z } from "zod";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -69,7 +69,7 @@ function buildZodType(param: ToolParam, moduleName: string): z.ZodTypeAny {
       zodType = z.array(z.unknown()).describe(desc);
       break;
     case "object":
-      zodType = z.record(z.unknown()).describe(desc);
+      zodType = z.record(z.string(), z.unknown()).describe(desc);
       break;
     default:
       if (param.enum && param.enum.length > 0 && param.enum.length <= 20) {
@@ -188,7 +188,7 @@ export function registerAutoTools(server: McpServer): number {
 
   let registered = 0;
   for (const entry of manifest) {
-    const shape: ZodRawShape = {};
+    const shape: Record<string, z.ZodType> = {};
 
     // Include all path params (required) + first 30 query/body params
     const pathP = entry.params.filter((p) => p.source === "path");
@@ -241,7 +241,9 @@ export function registerAutoTools(server: McpServer): number {
         {
           title: buildTitle(entry.summary, entry.deprecated),
           description,
-          inputSchema: shape,
+          // Strict so the JSON Schema keeps additionalProperties:false (zod 4 drops it
+          // for plain objects); a parameterless tool stays a plain empty object.
+          inputSchema: Object.keys(shape).length ? z.strictObject(shape) : z.object({}),
           annotations,
         },
         createToolHandler(entry)

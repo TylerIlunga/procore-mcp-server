@@ -33,7 +33,7 @@ export function registerTools(server: McpServer): void {
         "Reads the catalog bundled with this server, so it makes no Procore request and needs no " +
         "authentication — it cannot fail with 401/403 and costs no rate limit. " +
         "Step 1 of the discover -> detail -> call workflow.",
-      inputSchema: {},
+      inputSchema: z.object({}),
       annotations: { title: "Discover API Categories", ...LOCAL_READ_ONLY },
     },
     async () => {
@@ -57,7 +57,7 @@ export function registerTools(server: McpServer): void {
         "procore_get_endpoint_details. Filters that match nothing return an empty array, not an error. " +
         "Reads the bundled catalog: no Procore request, no authentication, no rate-limit cost. " +
         "Step 2 of the workflow.",
-      inputSchema: {
+      inputSchema: z.strictObject({
         category: z
           .string()
           .optional()
@@ -82,7 +82,7 @@ export function registerTools(server: McpServer): void {
           .describe(
             "Restrict results to a single HTTP method — useful to list only the reads (GET) in a module"
           ),
-      },
+      }),
       annotations: { title: "Discover Endpoints", ...LOCAL_READ_ONLY },
     },
     async (args) => {
@@ -105,13 +105,13 @@ export function registerTools(server: McpServer): void {
         "return; an unrecognized operation_id comes back as a not-found message rather than an error. " +
         "Reads the bundled catalog: no Procore request, no authentication, no rate-limit cost. " +
         "Step 3 of the workflow.",
-      inputSchema: {
+      inputSchema: z.strictObject({
         operation_id: z
           .string()
           .describe(
             "The exact operationId from procore_discover_endpoints or procore_search_endpoints, e.g. 'RestV10ProjectsProjectIdRfisGet'. Case-sensitive; not a URL path."
           ),
-      },
+      }),
       annotations: { title: "Get Endpoint Details", ...LOCAL_READ_ONLY },
     },
     async (args) => {
@@ -141,7 +141,7 @@ export function registerTools(server: McpServer): void {
         "validation, and 429 when the rate limit is exhausted. " +
         "Step 4 of the workflow; this reaches every Procore endpoint, including any not exposed as a " +
         "dedicated tool.",
-      inputSchema: {
+      inputSchema: z.strictObject({
         method: z
           .enum(["GET", "POST", "PUT", "PATCH", "DELETE"])
           .describe(
@@ -153,19 +153,19 @@ export function registerTools(server: McpServer): void {
             "API path with placeholders left intact, e.g. '/rest/v1.0/projects/{project_id}/rfis'. Supply the values via path_params rather than interpolating them here."
           ),
         path_params: z
-          .record(z.string())
+          .record(z.string(), z.string())
           .optional()
           .describe(
             "Values substituted into the path's {placeholders}, e.g. { project_id: '12345' }. Required whenever the path contains a placeholder that procore_set_config does not already supply."
           ),
         query_params: z
-          .record(z.union([z.string(), z.number(), z.boolean()]))
+          .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
           .optional()
           .describe(
             "Query-string parameters. Use double underscores for Procore's bracket syntax: filters__status becomes filters[status]."
           ),
         body: z
-          .record(z.unknown())
+          .record(z.string(), z.unknown())
           .optional()
           .describe(
             "JSON request body for POST/PUT/PATCH. Use the exact field names and nesting from procore_get_endpoint_details; ignored on GET and DELETE."
@@ -184,7 +184,7 @@ export function registerTools(server: McpServer): void {
           .number()
           .optional()
           .describe("Items per page, 1-100 (default 100)"),
-      },
+      }),
       annotations: {
         title: "Procore API Call",
         readOnlyHint: false,
@@ -215,13 +215,13 @@ export function registerTools(server: McpServer): void {
         "procore_get_endpoint_details to get its parameters. A term with no matches returns an empty " +
         "array, so retry with a broader or singular form before concluding the endpoint does not exist. " +
         "Reads the bundled catalog: no Procore request, no authentication, no rate-limit cost.",
-      inputSchema: {
+      inputSchema: z.strictObject({
         query: z
           .string()
           .describe(
             "Search term matched against endpoint summaries, tags, and paths, e.g. 'RFI', 'budget', 'punch list'. Single keywords match more broadly than phrases."
           ),
-      },
+      }),
       annotations: { title: "Search Endpoints", ...LOCAL_READ_ONLY },
     },
     async (args) => {
@@ -244,7 +244,7 @@ export function registerTools(server: McpServer): void {
         "Never returns token values or the client secret — only whether credentials are present. " +
         "Takes no arguments and returns a JSON object. Reads local process state, so it makes no " +
         "Procore request. Pair with procore_set_config to change any of it.",
-      inputSchema: {},
+      inputSchema: z.object({}),
       annotations: { title: "Show Config", ...LOCAL_READ_ONLY },
     },
     async () => {
@@ -268,7 +268,7 @@ export function registerTools(server: McpServer): void {
         "lost on restart. Setting the same value twice is a no-op, and nothing in Procore is modified: " +
         "this only changes which ids this server fills in for you. " +
         "Returns a confirmation plus the full updated configuration.",
-      inputSchema: {
+      inputSchema: z.strictObject({
         key: z
           .enum(["company_id", "project_id"])
           .describe(
@@ -279,7 +279,7 @@ export function registerTools(server: McpServer): void {
           .describe(
             "The id to store, as a string of digits (e.g. '12345'). Coerced to an integer; a non-numeric value is rejected."
           ),
-      },
+      }),
       annotations: {
         title: "Set Config",
         readOnlyHint: false,

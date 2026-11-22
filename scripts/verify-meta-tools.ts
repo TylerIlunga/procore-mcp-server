@@ -61,6 +61,27 @@ try {
   console.error = realError;
 }
 
+// Every parameterised tool advertises additionalProperties:false, and the
+// runtime must agree: an unknown key is a validation error naming the key, not
+// silently dropped (zod 4 plain objects strip it and omit the keyword).
+const listed = await client.listTools();
+for (const tool of listed.tools) {
+  const props = Object.keys((tool.inputSchema.properties as object | undefined) ?? {});
+  if (props.length === 0) continue;
+  check(
+    tool.inputSchema.additionalProperties === false,
+    `${tool.name} input schema does not declare additionalProperties: false`
+  );
+}
+const unknownKey = await client.callTool({
+  name: "procore_call_api",
+  arguments: { method: "GET", path: "/rest/v1.0/me", not_a_param: 1 },
+});
+check(
+  unknownKey.isError === true && JSON.stringify(unknownKey.content).includes("not_a_param"),
+  `an unknown argument was not rejected by name: ${JSON.stringify(unknownKey.content).slice(0, 200)}`
+);
+
 await client.close();
 
 if (failures.length > 0) {
