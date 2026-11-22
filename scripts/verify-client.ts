@@ -242,8 +242,9 @@ async function main(): Promise<void> {
   setDelayFn(async () => {});
   const { handleCallApi } = await import("../src/tools/handlers/call-api.js");
   script = [reply(500)];
-  const text = await handleCallApi({ method: "POST", path: PATH, body: { name: "x" } });
-  assert.match(text, /^Status: 500\nNot retried: POST is not idempotent/);
+  const result = await handleCallApi({ method: "POST", path: PATH, body: { name: "x" } });
+  assert.equal(result.isError, true, "a 500 is a tool error");
+  assert.match(result.content[0].text, /\nStatus: 500\nNot retried: POST is not idempotent/);
 
   console.log("verify-client: all invariants hold");
 }

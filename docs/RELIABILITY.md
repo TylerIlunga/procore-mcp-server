@@ -24,6 +24,39 @@ Every request carries `AbortSignal.timeout(PROCORE_REQUEST_TIMEOUT_MS)` (default
 30000 ms), which bounds the headers and the body read. Worst case for an idempotent
 call that keeps timing out: 4 attempts x the timeout, plus 7s of backoff.
 
+## Error results
+
+Both `procore_call_api` and the per-endpoint tools build failures through
+`src/tools/error-hints.ts`, so the two can't drift. Any Procore response with
+status >= 400, and any thrown failure, comes back with `isError: true`. A 2xx is
+a success even when the body is empty (`[]` means nothing matched; it is not a
+failure). An error result opens with a machine-readable line, then the usual
+status, notice and Procore body, then a `Suggestion:` for the category:
+
+```
+Error category: permission (not retryable as-is)
+Status: 403
+...
+Suggestion: The Procore user or service account lacks permission ... Procore error code: TOOL_NOT_ACTIVATED.
+```
+
+| Category | Cause | Recovery hint |
+|---|---|---|
+| `validation` | 400, 422 | Check params and body against `procore_get_endpoint_details` |
+| `auth` | 401 after the one refresh, or no usable token | `npm run auth`, or check the client credentials |
+| `permission` | 403 | Missing permission or the tool isn't enabled; Procore's `code` (e.g. `TOOL_NOT_ACTIVATED`) is named |
+| `not_found` | 404 | Check the path, the ids, and company_id/project_id |
+| `rate_limited` | 429 after retries | Wait and retry later |
+| `server_error` | 5xx | Transient, retry later. POST/PATCH (not retried): check whether the write landed before resending |
+| `client_error` | other 4xx | Read Procore's body |
+| `timeout` | `timed out after N ms` | Transient, retry later or raise `PROCORE_REQUEST_TIMEOUT_MS`. POST/PATCH: check first |
+| `network` | connection failed | Transient connectivity. POST/PATCH: check first |
+| `local_validation` | bad arguments, e.g. an unfilled `{placeholder}` in the path | Fix the input; nothing was sent |
+| `config` | invalid `PROCORE_*` environment | Fix the configuration and restart |
+
+The retry label is one of `not retryable as-is`, `retryable later` or
+`check before resending`. `scripts/verify-tool-errors.ts` covers this.
+
 ## Tokens
 
 The behavior depends on `PROCORE_GRANT_TYPE`.

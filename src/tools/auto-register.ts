@@ -11,6 +11,7 @@ import { procoreApiCall } from "../api/client.js";
 import { buildDescription } from "./description-builder.js";
 import { enrichParamDescription } from "./param-descriptions.js";
 import { buildAnnotations, buildTitle } from "./annotation-builder.js";
+import { httpErrorResult, thrownErrorResult } from "./error-hints.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MANIFEST_PATH = join(__dirname, "..", "..", "..", "data", "tools-manifest.json");
@@ -27,7 +28,7 @@ interface ToolParam {
   alsoBody?: boolean;
 }
 
-interface ToolManifestEntry {
+export interface ToolManifestEntry {
   toolName: string;
   operationId: string;
   method: string;
@@ -163,22 +164,22 @@ function createToolHandler(entry: ToolManifestEntry) {
         );
       }
 
-      return { content: [{ type: "text" as const, text: parts.join("\n") }] };
+      const text = parts.join("\n");
+      if (response.status >= 400) {
+        return httpErrorResult(response.status, response.data, response.notice, text);
+      }
+      return { content: [{ type: "text" as const, text }] };
     } catch (err) {
-      return {
-        content: [
-          { type: "text" as const, text: `Error: ${(err as Error).message}` },
-        ],
-        isError: true,
-      };
+      return thrownErrorResult(err);
     }
   };
 }
 
-export function registerAutoTools(server: McpServer): number {
+/** `entries` defaults to the full manifest; tests pass a subset. */
+export function registerAutoTools(server: McpServer, entries?: ToolManifestEntry[]): number {
   let manifest: ToolManifestEntry[];
   try {
-    manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"));
+    manifest = entries ?? JSON.parse(readFileSync(MANIFEST_PATH, "utf8"));
   } catch {
     console.error(
       "Failed to load tools manifest. Run 'npm run generate' first."
