@@ -9,6 +9,12 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    ignore:
+      # Keep Node's type definitions on the oldest supported runtime
+      # (package.json engines: >=20), so the compiler rejects APIs that
+      # Node 20 doesn't have. Bump this major together with engines.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       npm-minor-and-patch:
         update-types: [minor, patch]
