@@ -20,7 +20,7 @@ with that user's permissions.
 ## Core journeys
 
 1. **Discover, then call:** `procore_discover_categories` or `procore_search_endpoints`
-   → `procore_get_endpoint_details` → `procore_api_call`.
+   → `procore_get_endpoint_details` → `procore_call_api`.
 2. **Set context once:** `procore_set_config` with `company_id`/`project_id`, so later
    calls can omit them.
 3. **Direct tools (`PROCORE_TOOL_MODE=all`):** call a generated per-endpoint tool such

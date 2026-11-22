@@ -19,7 +19,7 @@
   service-account token carries no per-user identity, and its data visibility is
   whatever that account was granted in the company. There is no multi-tenant isolation, so don't expose it over a network
   transport without adding auth.
-- `procore_api_call` accepts arbitrary paths. Requests always go to the configured
+- `procore_call_api` accepts arbitrary paths. Requests always go to the configured
   Procore API base, never to arbitrary hosts. Hosts come from a fixed table keyed by
   `PROCORE_ENV` (`production`, `sandbox`, `sandbox-monthly`). An unrecognized value is
   rejected at startup, so a typo can't silently send credentials to production.

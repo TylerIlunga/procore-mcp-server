@@ -20,10 +20,19 @@ npm start              # Start MCP server (stdio transport)
 | `procore_discover_categories` | List API categories with endpoint counts |
 | `procore_discover_endpoints` | List endpoints in a category/module |
 | `procore_get_endpoint_details` | Get full parameter schema for an endpoint |
-| `procore_api_call` | Execute any Procore API call |
+| `procore_call_api` | Execute any Procore API call |
 | `procore_search_endpoints` | Full-text search across endpoints |
 | `procore_get_config` | Show current config (company_id, auth status) |
 | `procore_set_config` | Set runtime config (company_id, project_id) |
+
+Every meta tool is named `procore_<verb>_<noun>`. `procore_call_api` was
+`procore_api_call` until the rename; the old name is not listed in tools/list
+(a duplicate would hurt tool selection) but tools/call still routes it to
+`procore_call_api` with a stderr deprecation notice. The alias lives in
+`src/tools/tool-aliases.ts`, which rewrites the incoming JSON-RPC message at
+the transport, because SDK 1.28 has no public way to make a tool callable but
+unlisted. `npm test` (`scripts/verify-meta-tools.ts`) enforces the naming
+pattern and checks that retired names are hidden and still routed.
 
 ### Build Pipeline
 
@@ -35,7 +44,7 @@ When a spec refresh renames or removes generated tools, write a migration map
 link it in the release notes; `data/tool-renames.json` is a different, per-build
 raw-summary -> normalized-name map.
 The manifest drops older-version duplicates of the same path and the
-non-callable `/oauth/*` endpoints; both stay reachable via `procore_api_call`.
+non-callable `/oauth/*` endpoints; both stay reachable via `procore_call_api`.
 
 ### Tool Description Quality
 
@@ -179,7 +188,7 @@ PROCORE_GRANT_TYPE    - "authorization_code" (default; `npm run auth` once) or
 PROCORE_TOKEN_PATH    - Optional token file path (default ~/.procore-mcp/tokens.json)
 PROCORE_TOOL_MODE     - "meta" (default) serves only the 7 discovery tools;
                         "all" additionally registers one tool per endpoint.
-                        Coverage is identical either way — procore_api_call
+                        Coverage is identical either way — procore_call_api
                         reaches every endpoint in both modes.
 ```
 

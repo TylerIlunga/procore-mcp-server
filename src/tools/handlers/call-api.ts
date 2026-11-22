@@ -1,7 +1,7 @@
 import { procoreApiCall } from "../../api/client.js";
 import type { ApiCallOptions } from "../../api/types.js";
 
-export async function handleApiCall(args: {
+export async function handleCallApi(args: {
   method: string;
   path: string;
   path_params?: Record<string, string>;

@@ -16,9 +16,16 @@ A build-time parser converts Procore's OpenAPI spec into a compact catalog, then
 | `procore_discover_endpoints` | List endpoints in a category |
 | `procore_search_endpoints` | Full-text search across all endpoints |
 | `procore_get_endpoint_details` | Get full parameter schema for an endpoint |
-| `procore_api_call` | Execute any Procore API call |
+| `procore_call_api` | Execute any Procore API call |
 | `procore_get_config` | Show current config and auth status |
 | `procore_set_config` | Set runtime config (company_id, project_id) |
+
+> **Renamed:** `procore_call_api` was called `procore_api_call` before. Calls to
+> the old name still work: the server routes them to `procore_call_api` and logs
+> a deprecation notice to stderr. The old name is no longer listed, though. If you
+> pre-approved it in a client permission list (for example
+> `mcp__procore__procore_api_call` in Claude Code's `allowedTools`), add
+> `mcp__procore__procore_call_api` there too.
 
 ## Prerequisites
 
@@ -82,7 +89,7 @@ granted in the company it is installed in, not any individual user's. The defaul
 `authorization_code`, unchanged.
 
 By default the server exposes the **7 discovery tools**, and every Procore
-endpoint is reached through `procore_api_call`. Registering a dedicated tool
+endpoint is reached through `procore_call_api`. Registering a dedicated tool
 per endpoint instead emits roughly 4.7 MB (~1.2M tokens) of tool definitions —
 more than any current model's context window — so that surface is opt-in:
 
@@ -174,7 +181,7 @@ specs/        Source OAS file (gitignored — too large for the repo)
 
 1. **Build time**: `scripts/generate-catalog.ts` parses the ~64MB Procore OpenAPI spec (3,391 operations as of 2026-11-21) and produces a compact `data/catalog.json` plus individual endpoint detail files in `data/endpoint-details/`. `scripts/generate-tools-manifest.ts` then generates a tools manifest with one named MCP tool per API operation — 3,151 in total, after collapsing older-version duplicates of the same path.
 
-   Each generated tool carries a structured description covering what it acts on, when to reach for it, which parent ids to resolve first, what it returns, and how it fails. Endpoints Procore has deprecated are registered with their sunset date in the description and a `(Deprecated)` title. The interactive `/oauth/*` endpoints are not registered as tools — `npm run auth` owns that flow — but remain reachable through `procore_api_call`.
+   Each generated tool carries a structured description covering what it acts on, when to reach for it, which parent ids to resolve first, what it returns, and how it fails. Endpoints Procore has deprecated are registered with their sunset date in the description and a `(Deprecated)` title. The interactive `/oauth/*` endpoints are not registered as tools — `npm run auth` owns that flow — but remain reachable through `procore_call_api`.
 
 2. **Auth**: Run `npm run auth` once to complete the OAuth flow in your browser. Tokens are saved to `~/.procore-mcp/tokens.json` and auto-refresh when expired.
 

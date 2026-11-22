@@ -28,10 +28,16 @@ already set), validates `PROCORE_CLIENT_ID`/`PROCORE_CLIENT_SECRET`,
 that means a token file must exist; with `client_credentials` it mints a token. It then
 registers the tools over stdio:
 
-- `PROCORE_TOOL_MODE=meta` (the default) registers the 7 discovery tools. `procore_api_call`
+- `PROCORE_TOOL_MODE=meta` (the default) registers the 7 discovery tools. `procore_call_api`
   reaches every endpoint.
 - `PROCORE_TOOL_MODE=all` additionally registers one tool per endpoint from
   `data/tools-manifest.json` (`src/tools/auto-register.ts`).
+
+In both modes the stdio transport is wrapped by `withToolAliases`
+(`src/tools/tool-aliases.ts`). It rewrites a `tools/call` for a retired name
+(`procore_api_call`) to the current one (`procore_call_api`) before the SDK
+looks the tool up, so the old name keeps working without a second tools/list
+entry.
 
 ## Modules
 
