@@ -18,7 +18,7 @@ Single-user OAuth against Procore.
 | `npm run build` | Regenerate the catalog from `specs/combined_OAS.json`, validate it, compile |
 | `npx tsc --noEmit` | Type check |
 | `npm run validate` | Validate committed catalog artifacts in `data/` |
-| `npm test` | Verify tool-manifest invariants (`scripts/verify-manifest.ts`) and meta-tool naming plus retired-name routing (`scripts/verify-meta-tools.ts`) |
+| `npm test` | Tool-manifest invariants (`verify-manifest.ts`), meta-tool naming and retired-name routing (`verify-meta-tools.ts`), auth grants (`verify-auth.ts`), HTTP client timeout/retry/refresh (`verify-client.ts`); all under `scripts/`, mocked, no network |
 | `./scripts/arch-lint.sh` | Enforce the `src/` module dependency direction |
 | `./scripts/quality-scan.sh` | 300-line limit in `src/`, no stdout writes in server code, secrets |
 | `./scripts/doc-check.sh` | Required docs present, no template placeholders, no broken links |

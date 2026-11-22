@@ -19,5 +19,4 @@ maintenance (commit activity over 12 weeks, releases, issue response).
 
 | Area | Gap | Priority |
 |---|---|---|
-| Tests | Behavior is verified through manifest invariants only; no unit tests for `src/api/client.ts` retry and refresh paths | Medium |
 | File size | `scripts/generate-catalog.ts` (648), `scripts/generate-tools-manifest.ts` (653), `scripts/manifest-helpers.ts` (330) exceed the 300-line limit. Build-time only, so outside the `src/` gate | Low |

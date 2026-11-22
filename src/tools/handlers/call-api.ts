@@ -33,6 +33,7 @@ export async function handleCallApi(args: {
     } else {
       parts.push(`Status: ${response.status}`);
     }
+    if (response.notice) parts.push(response.notice);
 
     // Data
     const dataStr = JSON.stringify(response.data, null, 2);

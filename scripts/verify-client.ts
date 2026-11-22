@@ -10,6 +10,7 @@ import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { getRequestTimeoutMs } from "../src/api/request-timeout.js";
+import { isIdempotent, isRetryable } from "../src/api/retry-policy.js";
 import type { ProcoreApiResponse } from "../src/api/types.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -177,6 +178,72 @@ async function main(): Promise<void> {
   assert.equal(statusOf(r), 401, "a second 401 is returned, not refreshed again");
   assert.equal(mints, 1);
   assert.equal(apiCalls.length, 2);
+
+  // 401 refresh-and-retry-once applies to every method: the request was never executed.
+  r = await call("POST", [reply(401), reply(201)]);
+  assert.equal(statusOf(r), 201);
+  assert.equal(mints, 1);
+  assert.equal(apiCalls.length, 2);
+
+  // ---- retry policy (pure) ----
+  const kinds = ["rate_limited", "server_error", "timeout", "network_error"] as const;
+  for (const m of ["GET", "HEAD", "OPTIONS", "PUT", "DELETE", "get", " delete "]) {
+    assert.equal(isIdempotent(m), true, m);
+    for (const k of kinds) assert.equal(isRetryable(m, k), true, `${m} ${k}`);
+  }
+  for (const m of ["POST", "PATCH", "patch", "TRACE", ""]) {
+    assert.equal(isIdempotent(m), false, m);
+    assert.equal(isRetryable(m, "rate_limited"), true, `${m} 429 is retryable`);
+    for (const k of kinds.slice(1)) assert.equal(isRetryable(m, k), false, `${m} ${k}`);
+  }
+
+  // ---- POST/PATCH: a 5xx, timeout or network error is returned at once, never re-sent ----
+  const NOT_RETRIED = /Not retried: (POST|PATCH) is not idempotent, and Procore may already have applied the request/;
+  for (const m of ["POST", "PATCH"]) {
+    r = await call(m, [reply(503), reply(201)]);
+    assert.equal(apiCalls.length, 1, `${m} on 503: exactly 1 fetch`);
+    assert.equal(statusOf(r), 503, "the 503 itself goes back to the caller");
+    assert.match(r.value?.notice ?? "", NOT_RETRIED);
+    assert.deepEqual(delays, [], "no backoff wait");
+  }
+  for (const m of ["POST", "PATCH"]) {
+    r = await call(m, [timedOut, reply(200)]);
+    assert.equal(apiCalls.length, 1, `${m} on timeout: exactly 1 fetch`);
+    assert.match(errorOf(r), new RegExp(`timed out after 30000 ms: ${m} /rest/v1\\.0/projects`));
+    assert.match(errorOf(r), NOT_RETRIED);
+    r = await call(m, [networkDown, reply(200)]);
+    assert.equal(apiCalls.length, 1, `${m} on network error: exactly 1 fetch`);
+    assert.match(errorOf(r), /fetch failed/);
+    assert.match(errorOf(r), NOT_RETRIED);
+  }
+  // Idempotent writes keep retrying on 5xx; a retried GET's error carries no such notice.
+  for (const m of ["PUT", "DELETE"]) {
+    r = await call(m, [reply(502), reply(200)]);
+    assert.equal(statusOf(r), 200);
+    assert.equal(apiCalls.length, 2, `${m} on 502 is retried`);
+  }
+  r = await call("GET", [reply(500), reply(500), reply(500), reply(500)]);
+  assert.equal(statusOf(r), 500, "exhausted GET 5xx returns the last response");
+  assert.equal(apiCalls.length, 4);
+  assert.equal(r.value?.notice, undefined);
+
+  // ---- 429 is retried for every method, after waiting out Retry-After ----
+  r = await call("POST", [reply(429, { "Retry-After": "7" }), reply(201)]);
+  assert.equal(statusOf(r), 201);
+  assert.equal(apiCalls.length, 2, "429 on POST is retried");
+  assert.equal(delays.length, 1, "one wait: Retry-After, with no backoff on top");
+  assert.ok(delays[0] > 6900 && delays[0] <= 7100, `waited ${delays[0]} ms for Retry-After: 7`);
+  r = await call("PATCH", [reply(429), reply(200)]);
+  assert.equal(statusOf(r), 200);
+  assert.ok(delays[0] > 9900 && delays[0] <= 10100, `no Retry-After means 10s, waited ${delays[0]}`);
+
+  // ---- the tool handler shows the notice to the agent ----
+  const { setDelayFn } = await import("../src/api/client.js");
+  setDelayFn(async () => {});
+  const { handleCallApi } = await import("../src/tools/handlers/call-api.js");
+  script = [reply(500)];
+  const text = await handleCallApi({ method: "POST", path: PATH, body: { name: "x" } });
+  assert.match(text, /^Status: 500\nNot retried: POST is not idempotent/);
 
   console.log("verify-client: all invariants hold");
 }

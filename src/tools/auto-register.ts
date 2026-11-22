@@ -138,6 +138,7 @@ function createToolHandler(entry: ToolManifestEntry) {
           ? `Status: ${response.status} OK`
           : `Status: ${response.status}`
       );
+      if (response.notice) parts.push(response.notice);
 
       const dataStr = JSON.stringify(response.data, null, 2);
       if (dataStr.length > 50000) {
