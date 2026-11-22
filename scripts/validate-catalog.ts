@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, readdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -65,6 +65,16 @@ function main() {
     }
     if (!entry.category) {
       console.error(`MISSING category for: ${entry.operationId}`);
+      errors++;
+    }
+  }
+
+  // No orphaned detail files: every file must belong to a live catalog entry,
+  // or a removed endpoint keeps serving a stale schema.
+  const liveIds = new Set(catalog.map((e: { operationId: string }) => `${e.operationId}.json`));
+  for (const file of readdirSync(join(DATA_DIR, "endpoint-details"))) {
+    if (file.endsWith(".json") && !liveIds.has(file)) {
+      console.error(`ORPHANED detail file (endpoint no longer in catalog): ${file}`);
       errors++;
     }
   }

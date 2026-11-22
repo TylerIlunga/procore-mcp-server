@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -580,6 +580,17 @@ function main() {
         join(DETAILS_DIR, `${operation.operationId}.json`),
         JSON.stringify(detail)
       );
+    }
+  }
+
+  // Drop detail files for operations no longer in the spec. Without this, an
+  // endpoint Procore removed keeps serving its stale schema through
+  // procore_get_endpoint_details long after it left the catalog.
+  const liveIds = new Set(catalog.map((e) => `${e.operationId}.json`));
+  for (const file of readdirSync(DETAILS_DIR)) {
+    if (file.endsWith(".json") && !liveIds.has(file)) {
+      unlinkSync(join(DETAILS_DIR, file));
+      console.log(`  removed stale detail file: ${file}`);
     }
   }
 
