@@ -20,7 +20,7 @@ Single-user OAuth against Procore.
 | `npm run validate` | Validate committed catalog artifacts in `data/` |
 | `npm test` | Tool-manifest invariants (`verify-manifest.ts`), meta-tool naming and retired-name routing (`verify-meta-tools.ts`), auth grants (`verify-auth.ts`), HTTP client timeout/retry/refresh (`verify-client.ts`), tool error results and recovery hints (`verify-tool-errors.ts`); all under `scripts/`, mocked, no network |
 | `./scripts/arch-lint.sh` | Enforce the `src/` module dependency direction |
-| `./scripts/quality-scan.sh` | 300-line limit in `src/`, no stdout writes in server code, secrets |
+| `./scripts/quality-scan.sh` | 300-line limit in `src/` and `scripts/`, no stdout writes in server code, secrets |
 | `./scripts/doc-check.sh` | Required docs present, no template placeholders, no broken links |
 
 All of these run in CI (`.github/workflows/verify.yml`, `ci.yml`). The OAS
@@ -34,7 +34,7 @@ regenerates them.
    `src/auth/setup.ts`, the interactive `npm run auth` CLI.
 2. **Tool descriptions must not overclaim.** See "Tool Description Quality" in
    CLAUDE.md. `npm test` enforces it.
-3. **300 lines per file in `src/`.** Extract a focused module instead of growing one.
+3. **300 lines per file in `src/` and `scripts/`.** Extract a focused module instead of growing one.
 4. **Respect the module direction** described in [ARCHITECTURE.md](./ARCHITECTURE.md).
 5. **Never commit secrets.** `.env`, `.mcp.json`, and `~/.procore-mcp/tokens.json`
    stay out of the repo, and `client_credentials` tokens never touch disk. See [docs/SECURITY.md](./docs/SECURITY.md).

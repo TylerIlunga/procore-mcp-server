@@ -172,6 +172,7 @@ src/
 scripts/
   generate-catalog.ts          Parse OAS into catalog
   generate-tools-manifest.ts   Generate per-endpoint MCP tools
+  catalog/, manifest/          Rules behind the two generators
   validate-catalog.ts          Validate catalog integrity
 data/         Build output (committed): catalog.json, endpoint details, tools manifest
 specs/        Source OAS file (gitignored — too large for the repo)

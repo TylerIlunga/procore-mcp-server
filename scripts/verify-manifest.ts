@@ -69,7 +69,7 @@ const VERB_LEAK =
 const BAD_AN = /\ban (new|single|recycled|previously)\b/i;
 // A GET whose OWN description opens with "Creates"/"Create" is a genuine
 // Procore spec error (unlike a PATCH/PUT upsert legitimately worded that
-// way); generate-tools-manifest.ts should have cleared it to force synthesis.
+// way); scripts/manifest/description-clearing.ts should have cleared it to force synthesis.
 const GET_DESCRIBED_AS_CREATE = /^creates?\s+/i;
 
 const failures: string[] = [];

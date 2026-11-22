@@ -31,7 +31,7 @@
  * to `create_company_role` for the sake of a uniform prefix would reintroduce
  * exactly that bug.
  */
-import { truncateToolName } from "./manifest-helpers.js";
+import { truncateToolName } from "./manifest/naming.js";
 
 /** Verbs that mean "read" and nothing more; the collection/single split is
  *  decided by data, not by which of these the author happened to type. */
