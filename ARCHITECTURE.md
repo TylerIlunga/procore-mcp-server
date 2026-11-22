@@ -18,7 +18,7 @@ data/tools-manifest.json  ------------------------^           src/auth/ (OAuth, 
                                                          Procore REST API
 ```
 
-**Build time:** Procore's OpenAPI spec (gitignored, about 54MB) is compiled into
+**Build time:** Procore's OpenAPI spec (gitignored, about 64MB) is compiled into
 committed JSON artifacts under `data/`. The server never parses the spec at
 run time.
 
@@ -50,7 +50,7 @@ registers the tools over stdio:
 
 | Decision | Rationale |
 |---|---|
-| Generate the catalog at build time and commit `data/` | No 54MB parse at startup; CI can verify artifacts without the spec |
+| Generate the catalog at build time and commit `data/` | No 64MB parse at startup; CI can verify artifacts without the spec |
 | Meta tools by default, per-endpoint tools opt-in | Around 2,900 tools overwhelm tool selection; coverage is identical either way |
 | Node built-in `fetch`, no HTTP library | Fewer dependencies; Node 20+ ships it |
 | Tool names normalized to `verb_noun` | Procore's titles use inconsistent verbs; see CLAUDE.md |

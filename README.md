@@ -94,7 +94,7 @@ Coverage is identical in both modes; only the size of the advertised tool list
 differs. If you switch to `all` and are migrating from before v2.0.0, see
 `data/tool-renames.json` for the old -> new tool name map.
 
-You'll need Procore's OpenAPI spec file placed at `specs/combined_OAS.json`. This file is not included in the repo due to its size (~54MB). You can obtain it from [Procore's API documentation](https://developers.procore.com/).
+You'll need Procore's OpenAPI spec file placed at `specs/combined_OAS.json`. This file is not included in the repo due to its size (~64MB). Download it from the [Procore Developer Portal](https://developers.procore.com/) while signed in; there is no public download URL. You only need it to regenerate the catalog: the generated `data/` files are committed, so `npm start` works without it.
 
 Build the catalog and compile TypeScript:
 
@@ -172,7 +172,7 @@ specs/        Source OAS file (gitignored — too large for the repo)
 
 ## How it works
 
-1. **Build time**: `scripts/generate-catalog.ts` parses the ~54MB Procore OpenAPI spec (3,155 operations) and produces a compact `data/catalog.json` plus individual endpoint detail files in `data/endpoint-details/`. `scripts/generate-tools-manifest.ts` then generates a tools manifest with one named MCP tool per API operation — 2,929 in total, after collapsing older-version duplicates of the same path.
+1. **Build time**: `scripts/generate-catalog.ts` parses the ~64MB Procore OpenAPI spec (3,391 operations as of 2026-11-21) and produces a compact `data/catalog.json` plus individual endpoint detail files in `data/endpoint-details/`. `scripts/generate-tools-manifest.ts` then generates a tools manifest with one named MCP tool per API operation — 3,151 in total, after collapsing older-version duplicates of the same path.
 
    Each generated tool carries a structured description covering what it acts on, when to reach for it, which parent ids to resolve first, what it returns, and how it fails. Endpoints Procore has deprecated are registered with their sunset date in the description and a `(Deprecated)` title. The interactive `/oauth/*` endpoints are not registered as tools — `npm run auth` owns that flow — but remain reachable through `procore_api_call`.
 
