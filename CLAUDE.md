@@ -155,12 +155,21 @@ one clause into the next.
 1. Run `npm run auth` -> opens browser -> Procore OAuth -> tokens saved to `~/.procore-mcp/tokens.json`
 2. MCP server reads tokens on startup, auto-refreshes when expired
 
+With `PROCORE_GRANT_TYPE=client_credentials` there is no step 1: the server mints
+an app-level token at startup and re-mints it on expiry or a 401.
+
 ### Environment Variables
 
 ```
 PROCORE_CLIENT_ID     - OAuth client ID from Procore Developer Portal
 PROCORE_CLIENT_SECRET - OAuth client secret
 PROCORE_COMPANY_ID    - Default Procore company ID (integer)
+PROCORE_ENV           - "production" (default when unset), "sandbox", or
+                        "sandbox-monthly". Any other value is rejected at startup.
+PROCORE_GRANT_TYPE    - "authorization_code" (default; `npm run auth` once) or
+                        "client_credentials" (service-account/DMSA app; token
+                        minted at startup, held in memory, never on disk).
+PROCORE_TOKEN_PATH    - Optional token file path (default ~/.procore-mcp/tokens.json)
 PROCORE_TOOL_MODE     - "meta" (default) serves only the 7 discovery tools;
                         "all" additionally registers one tool per endpoint.
                         Coverage is identical either way — procore_api_call

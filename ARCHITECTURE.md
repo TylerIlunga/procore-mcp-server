@@ -23,8 +23,10 @@ committed JSON artifacts under `data/`. The server never parses the spec at
 run time.
 
 **Run time:** `src/index.ts` loads `.env` (it never overrides variables that are
-already set), validates `PROCORE_CLIENT_ID`/`PROCORE_CLIENT_SECRET` and token
-presence, then registers the tools over stdio:
+already set), validates `PROCORE_CLIENT_ID`/`PROCORE_CLIENT_SECRET`,
+`PROCORE_ENV` and `PROCORE_GRANT_TYPE`, then checks auth. With `authorization_code`
+that means a token file must exist; with `client_credentials` it mints a token. It then
+registers the tools over stdio:
 
 - `PROCORE_TOOL_MODE=meta` (the default) registers the 7 discovery tools. `procore_api_call`
   reaches every endpoint.
@@ -35,7 +37,7 @@ presence, then registers the tools over stdio:
 
 | Module | Responsibility | May import from |
 |---|---|---|
-| `src/auth/` | OAuth code exchange, refresh (with refresh-token rotation), token file I/O, `npm run auth` CLI | nothing in `src/` |
+| `src/auth/` | Environment and grant selection; OAuth code exchange and refresh (refresh-token rotation); in-memory `client_credentials` tokens; token file I/O; `npm run auth` CLI | nothing in `src/` |
 | `src/catalog/` | Load and search the generated catalog in `data/` | nothing in `src/` |
 | `src/api/` | Authenticated HTTP client: pagination, rate limits, retries | `auth` |
 | `src/tools/` | MCP tool handlers, registry, generated-description builders | `auth`, `api`, `catalog` |
