@@ -8,15 +8,21 @@ on:
 
 jobs:
   verify:
-    name: Typecheck & manifest invariants
+    name: Typecheck & manifest invariants (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 20 is the declared floor (package.json engines) even though it is
+        # past end-of-life; 22 and 24 are the current LTS lines.
+        node: ["20", "22", "24"]
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ matrix.node }}
           cache: npm
 
       - name: Install dependencies
