@@ -93,6 +93,28 @@ export function collapseStutter(name: string): string {
   return out.join("_");
 }
 
+/**
+ * Procore annotates some summaries with the API version in parentheses:
+ * "Create a coordination issue (REST v2.0)", "List Calendars (V2.1)". The
+ * version suffix below already comes from the *path*, so the annotation only
+ * produced names like `create_a_coordination_issue_rest_v2_0` -- and it is
+ * sometimes wrong ("(V1.1)" on a v1.0 path). Drop the version tokens, keep any
+ * real qualifier that shares the parenthetical ("REST v2.0, issue-scoped" ->
+ * "issue-scoped"), and drop the parenthetical if nothing else is left.
+ */
+export function stripVersionAnnotation(summary: string): string {
+  return summary
+    .replace(/\(([^)]*)\)/g, (_whole, inner: string) => {
+      const kept = inner
+        .replace(/\b(?:REST\s+)?v\d+(?:\.\d+)?\b/gi, "")
+        .replace(/^[\s,;]+|[\s,;]+$/g, "")
+        .replace(/\s*[,;]\s*[,;]\s*/g, ", ");
+      return kept ? `(${kept})` : "";
+    })
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /** Convert OAS summary to a clean snake_case tool name */
 export function summaryToToolName(
   summary: string,
@@ -103,7 +125,7 @@ export function summaryToToolName(
   const override = NAME_OVERRIDES[`${method} ${path}`];
   if (override) return override;
 
-  let name = summary
+  let name = stripVersionAnnotation(summary)
     .toLowerCase()
     .replace(/[''`]/g, "")
     .replace(/[^a-z0-9\s]/g, " ")

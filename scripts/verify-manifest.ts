@@ -102,6 +102,10 @@ for (const e of manifest) {
   check(!DANGLING_TAIL.test(n), `name ends on a stranded function word: ${n}`);
   check(!HTTP_VERB_NAME.test(n), `name is a bare HTTP method word: ${n}`);
   check(
+    !/(^|_)rest_v\d|(^|_)rest$/.test(n),
+    `name carries a summary version annotation ("REST v2.0") instead of the path version: ${n}`
+  );
+  check(
     !(NUMERIC_SUFFIX.test(n) && !VERSIONED_SUFFIX.test(n)),
     `name falls back to an opaque numeric collision suffix: ${n}`
   );

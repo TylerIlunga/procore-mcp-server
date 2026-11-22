@@ -27,9 +27,13 @@ npm start              # Start MCP server (stdio transport)
 
 ### Build Pipeline
 
-`specs/combined_OAS.json` (~54MB) -> `scripts/generate-catalog.ts` -> `data/catalog.json` + `data/endpoint-details/` -> `scripts/generate-tools-manifest.ts` -> `data/tools-manifest.json`
+`specs/combined_OAS.json` (~64MB) -> `scripts/generate-catalog.ts` -> `data/catalog.json` + `data/endpoint-details/` -> `scripts/generate-tools-manifest.ts` -> `data/tools-manifest.json`
 
-Current spec (2026-08-04): 3,155 operations -> 2,929 generated tools + 7 meta tools.
+Current spec (2026-11-21): 3,391 operations -> 3,151 generated tools + 7 meta tools.
+When a spec refresh renames or removes generated tools, write a migration map
+`data/tool-renames-<prev>-to-<next>.json` (see the v2.1.0 -> v2.2.0 one) and
+link it in the release notes; `data/tool-renames.json` is a different, per-build
+raw-summary -> normalized-name map.
 The manifest drops older-version duplicates of the same path and the
 non-callable `/oauth/*` endpoints; both stay reachable via `procore_api_call`.
 
@@ -112,7 +116,10 @@ strip filler articles ("Create Coordination Issue" / "Create a coordination
 issue") so real siblings aren't missed over a stray "a". A bare HTTP-method
 word leading an OAS summary ("POST Company Role") is normalized to its
 natural verb before any of this runs, since it produces names like
-`post_company_role` otherwise.
+`post_company_role` otherwise. Likewise a version annotation in a summary
+("Create a coordination issue (REST v2.0)", "List Calendars (V2.1)") is stripped
+by `stripVersionAnnotation` before naming: the version suffix comes from the
+path, and the annotation is sometimes wrong ("(V1.1)" on a v1.0 path).
 
 Generated tool names follow a `verb_noun` convention imposed by
 `scripts/normalize-verbs.ts`, which runs between naming and collision
