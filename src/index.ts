@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { registerTools } from "./tools/registry.js";
 import { registerAutoTools } from "./tools/auto-register.js";
+import { withToolAliases } from "./tools/tool-aliases.js";
 import { loadCatalog, loadCategories } from "./catalog/repository.js";
 import { tokensExist } from "./auth/token-store.js";
 import {
@@ -122,7 +123,7 @@ async function main(): Promise<void> {
   // endpoint instead emits roughly 4.7 MB (~1.2M tokens) of tool definitions,
   // which exceeds every current model's context window -- so the full surface
   // is opt-in via PROCORE_TOOL_MODE=all rather than the default. Coverage is
-  // unaffected either way: procore_api_call reaches every endpoint.
+  // unaffected either way: procore_call_api reaches every endpoint.
   let autoCount = 0;
   if ((process.env.PROCORE_TOOL_MODE || "meta").toLowerCase() === "all") {
     autoCount = registerAutoTools(server);
@@ -130,13 +131,14 @@ async function main(): Promise<void> {
   } else {
     console.error(
       "Serving the 7 discovery tools; every Procore endpoint stays reachable " +
-        "through procore_api_call. Set PROCORE_TOOL_MODE=all to also register " +
+        "through procore_call_api. Set PROCORE_TOOL_MODE=all to also register " +
         "a dedicated tool per endpoint."
     );
   }
 
-  // Connect via stdio transport
-  const transport = new StdioServerTransport();
+  // Connect via stdio transport. withToolAliases keeps retired tool names
+  // (procore_api_call) callable without listing them a second time.
+  const transport = withToolAliases(new StdioServerTransport());
   await server.connect(transport);
 
   console.error(`Procore MCP server running — ${autoCount + 7} total tools`);

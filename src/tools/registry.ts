@@ -3,7 +3,7 @@ import { z } from "zod";
 import { handleDiscoverCategories } from "./handlers/discover-categories.js";
 import { handleDiscoverEndpoints } from "./handlers/discover-endpoints.js";
 import { handleGetEndpointDetails } from "./handlers/get-endpoint-details.js";
-import { handleApiCall } from "./handlers/api-call.js";
+import { handleCallApi } from "./handlers/call-api.js";
 import { handleSearchEndpoints } from "./handlers/search-endpoints.js";
 import { handleGetConfig } from "./handlers/get-config.js";
 import { handleSetConfig } from "./handlers/set-config.js";
@@ -99,7 +99,7 @@ export function registerTools(server: McpServer): void {
       description:
         "Returns the complete parameter schema for one Procore endpoint: every path, query, and body " +
         "field with its type and required flag, plus the response shape. " +
-        "Call this after discovery and before procore_api_call — api_call needs exact parameter names, " +
+        "Call this after discovery and before procore_call_api — it needs exact parameter names, " +
         "and guessing them is the most common cause of a rejected request. " +
         "Takes the operationId string that procore_discover_endpoints and procore_search_endpoints " +
         "return; an unrecognized operation_id comes back as a not-found message rather than an error. " +
@@ -120,9 +120,9 @@ export function registerTools(server: McpServer): void {
     }
   );
 
-  // 4. API Call (the core tool)
+  // 4. Call API (the core tool)
   server.registerTool(
-    "procore_api_call",
+    "procore_call_api",
     {
       title: "Execute Any Procore API Call",
       description:
@@ -196,7 +196,7 @@ export function registerTools(server: McpServer): void {
       },
     },
     async (args) => {
-      const text = await handleApiCall(args);
+      const text = await handleCallApi(args);
       return { content: [{ type: "text" as const, text }] };
     }
   );
@@ -237,7 +237,7 @@ export function registerTools(server: McpServer): void {
       title: "Show Server Configuration",
       description:
         "Reports this server's current state: whether Procore OAuth tokens are present and still valid, " +
-        "the default company_id, and the active project_id that procore_api_call substitutes when you " +
+        "the default company_id, and the active project_id that procore_call_api substitutes when you " +
         "omit those parameters. " +
         "Check this first when a call fails with 401 or 403, or to confirm which project subsequent " +
         "calls will target before running a write. " +
@@ -259,7 +259,7 @@ export function registerTools(server: McpServer): void {
     {
       title: "Set Runtime Configuration Value",
       description:
-        "Sets the default company_id or project_id that later procore_api_call requests use when the " +
+        "Sets the default company_id or project_id that later procore_call_api requests use when the " +
         "path needs one and you omit it. Use it to switch project context mid-session instead of " +
         "restarting the server, then call procore_get_config to confirm what took effect. " +
         "Only 'company_id' and 'project_id' are accepted; both are coerced to integers, and a " +

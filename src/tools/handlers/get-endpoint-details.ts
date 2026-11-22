@@ -81,7 +81,7 @@ export async function handleGetEndpointDetails(args: {
   }
 
   lines.push(
-    "Use procore_api_call to execute this endpoint."
+    "Use procore_call_api to execute this endpoint."
   );
 
   return lines.join("\n");
