@@ -1,4 +1,5 @@
 import { getValidAccessToken, getApiBaseUrl } from "../auth/oauth.js";
+import { defaultCompanyId, withContextDefaults } from "./request-context.js";
 import type { ProcoreApiResponse, ApiCallOptions } from "./types.js";
 import { getRequestTimeoutMs, isTimeoutError } from "./request-timeout.js";
 import { isRetryable, notRetriedNotice } from "./retry-policy.js";
@@ -17,10 +18,6 @@ export function setDelayFn(fn?: DelayFn): void {
   delay = fn ?? realDelay;
 }
 
-function getDefaultCompanyId(): number | null {
-  const id = process.env.PROCORE_COMPANY_ID;
-  return id ? parseInt(id, 10) : null;
-}
 
 // In-memory rate limit state
 let rateLimitState = {
@@ -94,8 +91,9 @@ export async function procoreApiCall(
   const { method, pathParams, queryParams, body, page, perPage } = options;
   let { path, companyId } = options;
 
-  // Substitute path parameters
-  path = substitutePath(path, pathParams);
+  // Substitute path parameters, filling company_id / project_id from the
+  // procore_set_config session defaults when the caller left them out.
+  path = substitutePath(path, withContextDefaults(path, pathParams));
 
   // Build full URL
   const qs = buildQueryString(queryParams, page, perPage);
@@ -114,7 +112,7 @@ export async function procoreApiCall(
     "Content-Type": "application/json",
   };
 
-  const effectiveCompanyId = companyId ?? getDefaultCompanyId();
+  const effectiveCompanyId = companyId ?? defaultCompanyId();
   if (effectiveCompanyId) {
     headers["Procore-Company-Id"] = String(effectiveCompanyId);
   }
@@ -250,16 +248,6 @@ export async function procoreApiCall(
   );
 }
 
-// Runtime config store (in-memory, set via procore_set_config tool)
-let runtimeConfig: Record<string, string | number> = {};
-
-export function getRuntimeConfig(): Record<string, string | number> {
-  return { ...runtimeConfig };
-}
-
-export function setRuntimeConfig(
-  key: string,
-  value: string | number
-): void {
-  runtimeConfig[key] = value;
-}
+// The procore_set_config store lives in request-context.ts, next to the
+// fallback logic that reads it; re-exported for existing importers.
+export { getRuntimeConfig, setRuntimeConfig } from "./request-context.js";
