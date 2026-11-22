@@ -38,6 +38,13 @@ pattern and checks that retired names are hidden and still routed.
 
 `specs/combined_OAS.json` (~64MB) -> `scripts/generate-catalog.ts` -> `data/catalog.json` + `data/endpoint-details/` -> `scripts/generate-tools-manifest.ts` -> `data/tools-manifest.json`
 
+The two entry points only orchestrate. The rules live in `scripts/catalog/`
+(collection detection, typo repair, parameter and request-body extraction,
+schema simplification, detail files and stale-file cleanup, category index)
+and `scripts/manifest/` (entry building, naming, params, version dedup,
+collision resolution, version siblings, description clearing);
+`scripts/shared/truncate.ts` is used by both.
+
 Current spec (2026-11-21): 3,391 operations -> 3,151 generated tools + 7 meta tools.
 When a spec refresh renames or removes generated tools, write a migration map
 `data/tool-renames-<prev>-to-<next>.json` (see the v2.1.0 -> v2.2.0 one) and
@@ -63,7 +70,7 @@ dimension, and no sentence may restate another:
 
 Pagination is advertised only when the endpoint genuinely returns a collection
 (`returnsCollection`), in both the description and the input schema.
-`schemaIsCollection` in `scripts/generate-catalog.ts` unwraps `{ data: [...] }`
+`schemaIsCollection` in `scripts/catalog/collection.ts` unwraps `{ data: [...] }`
 envelopes (and any single-property object wrapping an array, whatever it's
 named — Procore's v1.0 endpoints often envelope under the plural resource
 name, e.g. `{ exchange_rates: [...] }`) and merges `allOf` branches into one
@@ -81,7 +88,7 @@ The envelope key is recorded as `collectionEnvelope` and named in the
 behavior sentence.
 
 Procore's own OAS text is untrustworthy in two specific, narrow cases, both
-handled in `generate-tools-manifest.ts` by clearing the inherited
+handled in `scripts/manifest/description-clearing.ts` by clearing the inherited
 `description` so the tool falls back to its own summary-driven synthesis:
 a GET whose description opens with "Creates"/"Create" (a genuine spec error,
 unlike a PATCH/PUT upsert legitimately described that way), and a
@@ -146,7 +153,7 @@ to prevent. `data/tool-renames.json` records old -> current names for anyone
 migrating.
 
 Two truncation limits on the same raw OAS description text (in
-`generate-catalog.ts` and `generate-tools-manifest.ts`) must stay in sync —
+`scripts/catalog/detail-files.ts` and `scripts/manifest/build-entry.ts`) must stay in sync —
 a lower second limit silently re-truncates text the first limit already
 let through, severing markdown tables (Procore's file-format lists, mainly)
 mid-row again. Separately, the rollback in `trimToWholeSentence` that walks

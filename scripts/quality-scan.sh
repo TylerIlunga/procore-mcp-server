@@ -12,17 +12,17 @@ NC='\033[0m'
 
 echo "=== Quality Scan ==="
 
-# 300-line limit (CLAUDE.md coding conventions). Applies to src/ — the
-# build-time generators in scripts/ are tracked as known debt in docs/QUALITY.md.
-echo "--- File sizes in src/ (max 300 lines) ---"
+# 300-line limit (CLAUDE.md coding conventions). Applies to the server code in
+# src/ and to the build-time scripts in scripts/ (including its subfolders).
+echo "--- File sizes in src/ and scripts/ (max 300 lines) ---"
 while IFS= read -r file; do
   lines=$(wc -l < "$file" | tr -d ' ')
   if [ "$lines" -gt 300 ]; then
     echo -e "${RED}  OVER LIMIT${NC} $file has $lines lines"
-    echo "    FIX: extract a focused module (see src/tools/sentence-trim.ts for the pattern)."
+    echo "    FIX: extract a focused module (see src/tools/sentence-trim.ts or scripts/catalog/ for the pattern)."
     ISSUES=$((ISSUES + 1))
   fi
-done < <(find src -type f -name '*.ts')
+done < <(find src scripts -type f \( -name '*.ts' -o -name '*.sh' \))
 
 # The MCP server speaks JSON-RPC over stdout (stdio transport). Any stray
 # console.log in server code corrupts the protocol stream. Use console.error
