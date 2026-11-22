@@ -180,6 +180,9 @@ an app-level token at startup and re-mints it on expiry or a 401.
 PROCORE_CLIENT_ID     - OAuth client ID from Procore Developer Portal
 PROCORE_CLIENT_SECRET - OAuth client secret
 PROCORE_COMPANY_ID    - Default Procore company ID (integer)
+PROCORE_REQUEST_TIMEOUT_MS - Per-request timeout for Procore API calls, in ms
+                        (default 30000). Must be a positive integer; any
+                        other value stops the server at startup.
 PROCORE_ENV           - "production" (default when unset), "sandbox", or
                         "sandbox-monthly". Any other value is rejected at startup.
 PROCORE_GRANT_TYPE    - "authorization_code" (default; `npm run auth` once) or

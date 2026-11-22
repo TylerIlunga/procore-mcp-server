@@ -12,6 +12,7 @@ import {
   getApiBaseUrl,
   type GrantType,
 } from "./auth/oauth.js";
+import { getRequestTimeoutMs } from "./api/request-timeout.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -70,7 +71,9 @@ async function main(): Promise<void> {
   let grant: GrantType;
   try {
     grant = getGrantType();
+    const timeoutMs = getRequestTimeoutMs();
     console.error(`Procore environment: ${getEnvironment()} (${getApiBaseUrl()})`);
+    console.error(`Procore request timeout: ${timeoutMs} ms`);
   } catch (err) {
     console.error(`ERROR: ${(err as Error).message}`);
     process.exit(1);

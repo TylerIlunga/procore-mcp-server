@@ -12,6 +12,11 @@ export interface ProcoreApiResponse {
     limit: number;
     reset_at: number;
   };
+  /**
+   * Set when a failure is returned without retrying it (a 5xx on POST/PATCH,
+   * which Procore may already have applied). Handlers show it to the caller.
+   */
+  notice?: string;
 }
 
 export interface ProcoreApiError {
