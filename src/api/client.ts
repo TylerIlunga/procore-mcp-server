@@ -1,7 +1,20 @@
 import { getValidAccessToken, getApiBaseUrl } from "../auth/oauth.js";
 import type { ProcoreApiResponse, ApiCallOptions } from "./types.js";
+import { getRequestTimeoutMs, isTimeoutError } from "./request-timeout.js";
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 1000;
+
+type DelayFn = (ms: number) => Promise<void>;
+const realDelay: DelayFn = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+let delay: DelayFn = realDelay;
+
+/**
+ * Replace the wait used for backoff and rate limiting. Tests pass an instant
+ * function so retry paths run without real-time waits; pass nothing to restore.
+ */
+export function setDelayFn(fn?: DelayFn): void {
+  delay = fn ?? realDelay;
+}
 
 function getDefaultCompanyId(): number | null {
   const id = process.env.PROCORE_COMPANY_ID;
@@ -70,7 +83,7 @@ async function waitForRateLimit(): Promise<void> {
     console.error(
       `Rate limited. Waiting ${(waitMs / 1000).toFixed(1)}s...`
     );
-    await new Promise((resolve) => setTimeout(resolve, waitMs));
+    await delay(waitMs);
   }
 }
 
@@ -86,6 +99,10 @@ export async function procoreApiCall(
   // Build full URL
   const qs = buildQueryString(queryParams, page, perPage);
   const url = `${getApiBaseUrl()}${path}${qs}`;
+
+  // Validated on every call (and at startup in src/index.ts): a bad value throws.
+  const timeoutMs = getRequestTimeoutMs();
+  const verb = method.toUpperCase();
 
   // Get auth token
   const token = await getValidAccessToken();
@@ -107,18 +124,19 @@ export async function procoreApiCall(
   let lastError: Error | null = null;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     if (attempt > 0) {
-      const delay = RETRY_BASE_MS * Math.pow(2, attempt - 1);
-      await new Promise((resolve) => setTimeout(resolve, delay));
+      await delay(RETRY_BASE_MS * Math.pow(2, attempt - 1));
     }
 
     try {
+      // The signal also bounds reading the body below, not just the headers.
       const res = await fetch(url, {
-        method: method.toUpperCase(),
+        method: verb,
         headers,
         body:
-          body && ["POST", "PUT", "PATCH"].includes(method.toUpperCase())
+          body && ["POST", "PUT", "PATCH"].includes(verb)
             ? JSON.stringify(body)
             : undefined,
+        signal: AbortSignal.timeout(timeoutMs),
       });
 
       // Update rate limit state
@@ -200,12 +218,21 @@ export async function procoreApiCall(
 
       return result;
     } catch (err) {
-      lastError = err as Error;
+      // A timeout is transient, like a dropped connection: retried the same way.
+      lastError = isTimeoutError(err)
+        ? new Error(`Procore request timed out after ${timeoutMs} ms: ${verb} ${path}`)
+        : new Error(`Procore request failed: ${verb} ${path}: ${(err as Error).message}`, {
+            cause: err,
+          });
       if (attempt < MAX_RETRIES) continue;
     }
   }
 
-  throw lastError || new Error("API call failed after retries");
+  throw new Error(
+    `${lastError?.message ?? `Procore request failed: ${verb} ${path}`} ` +
+      `(gave up after ${MAX_RETRIES + 1} attempts)`,
+    { cause: lastError }
+  );
 }
 
 // Runtime config store (in-memory, set via procore_set_config tool)

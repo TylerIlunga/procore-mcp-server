@@ -10,6 +10,8 @@ How the server behaves when Procore or the network misbehaves. Source:
 | `429 Too Many Requests` | Waits for `Retry-After` (default 10s), then retries, up to `MAX_RETRIES` (3) |
 | `401 Unauthorized` | Refreshes the access token once and retries |
 | `5xx` | Retries with exponential backoff from `RETRY_BASE_MS` (1s), up to 3 times |
+| Timeout | Every request carries `AbortSignal.timeout(PROCORE_REQUEST_TIMEOUT_MS)` (default 30000 ms), covering the headers and the body read. A timeout is transient: retried with the same backoff. Once retries run out, the error says `timed out after N ms` with the method and path, so it reads differently from an HTTP error |
+| Network error | Retried with the same backoff. The exhausted error names the method, path and underlying cause |
 | Other `4xx` | Not retried. The status and Procore's error body go back to the caller |
 | Rate-limit headers | Tracked in memory (`remaining`, `limit`, `resetAt`) |
 
@@ -38,6 +40,7 @@ The server exits with a clear stderr message, before any tool call is accepted, 
 - `PROCORE_CLIENT_ID`/`PROCORE_CLIENT_SECRET` are missing
 - `PROCORE_ENV` is not `production`, `sandbox`, or `sandbox-monthly`
 - `PROCORE_GRANT_TYPE` is not `authorization_code` or `client_credentials`
+- `PROCORE_REQUEST_TIMEOUT_MS` is set but is not a positive integer (1 to 2147483647)
 - `authorization_code`: no token file exists. `client_credentials`: the startup mint fails
 
 It logs the resolved environment and API host on start. It never starts half-configured.
@@ -50,4 +53,5 @@ server code.
 
 ## Known gaps
 
-See [QUALITY.md](./QUALITY.md#known-gaps): there is no per-request timeout yet.
+See [QUALITY.md](./QUALITY.md#known-gaps). Timeouts and the retry and refresh
+paths are covered by `scripts/verify-client.ts` (`npm test`).
