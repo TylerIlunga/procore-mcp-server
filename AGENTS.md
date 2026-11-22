@@ -37,7 +37,7 @@ regenerates them.
 3. **300 lines per file in `src/`.** Extract a focused module instead of growing one.
 4. **Respect the module direction** described in [ARCHITECTURE.md](./ARCHITECTURE.md).
 5. **Never commit secrets.** `.env`, `.mcp.json`, and `~/.procore-mcp/tokens.json`
-   stay out of the repo. See [docs/SECURITY.md](./docs/SECURITY.md).
+   stay out of the repo, and `client_credentials` tokens never touch disk. See [docs/SECURITY.md](./docs/SECURITY.md).
 6. **Bump `package.json` in the release PR.** It is not automatic.
 
 ## Docs map
