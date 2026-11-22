@@ -11,7 +11,17 @@ import { procoreApiCall } from "../api/client.js";
 import { buildDescription } from "./description-builder.js";
 import { enrichParamDescription } from "./param-descriptions.js";
 import { buildAnnotations, buildTitle } from "./annotation-builder.js";
-import { httpErrorResult, thrownErrorResult } from "./error-hints.js";
+import {
+  httpErrorResult,
+  localValidationError,
+  thrownErrorResult,
+  unresolvedPlaceholders,
+} from "./error-hints.js";
+import {
+  CONFIG_BACKED_PARAMS,
+  missingContextHint,
+  withContextDefaults,
+} from "../api/request-context.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MANIFEST_PATH = join(__dirname, "..", "..", "..", "data", "tools-manifest.json");
@@ -83,7 +93,10 @@ function buildZodType(param: ToolParam, moduleName: string): z.ZodTypeAny {
       }
   }
 
-  if (!param.required) {
+  // company_id / project_id in the path can come from procore_set_config, so
+  // the schema must let the model omit them, as the description promises.
+  const configBacked = param.source === "path" && CONFIG_BACKED_PARAMS.has(param.name);
+  if (!param.required || configBacked) {
     zodType = zodType.optional();
   }
 
@@ -124,10 +137,17 @@ function createToolHandler(entry: ToolManifestEntry) {
     }
 
     try {
+      const filledPathParams = withContextDefaults(entry.path, pathParams);
+      const missing = unresolvedPlaceholders(entry.path, filledPathParams);
+      if (missing.length > 0) {
+        throw localValidationError(
+          `Missing required path parameter(s): ${missing.join(", ")}.` + missingContextHint(missing)
+        );
+      }
       const response = await procoreApiCall({
         method: entry.method,
         path: entry.path,
-        pathParams: Object.keys(pathParams).length > 0 ? pathParams : undefined,
+        pathParams: filledPathParams,
         queryParams:
           Object.keys(queryParams).length > 0 ? queryParams : undefined,
         body,

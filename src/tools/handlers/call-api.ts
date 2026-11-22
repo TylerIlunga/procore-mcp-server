@@ -1,4 +1,5 @@
 import { procoreApiCall } from "../../api/client.js";
+import { missingContextHint, withContextDefaults } from "../../api/request-context.js";
 import type { ApiCallOptions } from "../../api/types.js";
 import {
   httpErrorResult,
@@ -30,11 +31,15 @@ export async function handleCallApi(args: {
   };
 
   try {
-    const missing = unresolvedPlaceholders(args.path, args.path_params);
+    const missing = unresolvedPlaceholders(
+      args.path,
+      withContextDefaults(args.path, args.path_params)
+    );
     if (missing.length > 0) {
       throw localValidationError(
         `Path ${args.path} has unfilled placeholder(s): ${missing.join(", ")}. ` +
-          `Supply them in path_params, e.g. { "${missing[0]}": "123" }.`
+          `Supply them in path_params, e.g. { "${missing[0]}": "123" }.` +
+          missingContextHint(missing)
       );
     }
     const response = await procoreApiCall(options);

@@ -24,6 +24,16 @@ Every request carries `AbortSignal.timeout(PROCORE_REQUEST_TIMEOUT_MS)` (default
 30000 ms), which bounds the headers and the body read. Worst case for an idempotent
 call that keeps timing out: 4 attempts x the timeout, plus 7s of backoff.
 
+## Session defaults (`procore_set_config`)
+
+`company_id` and `project_id` in a path may be omitted by the caller; the server
+fills them from `src/api/request-context.ts`. Precedence: explicit argument, then
+the value set with `procore_set_config`, then `PROCORE_COMPANY_ID` (company only).
+The `Procore-Company-Id` header follows the same order. Generated tools mark those
+two path ids optional in their schemas for this reason. If a value is still
+missing, the call is rejected locally, before any request, with a hint naming
+`procore_set_config`. Verified by `scripts/verify-config-fallback.ts`.
+
 ## Error results
 
 Both `procore_call_api` and the per-endpoint tools build failures through
