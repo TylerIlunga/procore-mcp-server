@@ -195,10 +195,8 @@ export function registerTools(server: McpServer): void {
         openWorldHint: true,
       },
     },
-    async (args) => {
-      const text = await handleCallApi(args);
-      return { content: [{ type: "text" as const, text }] };
-    }
+    // HTTP >= 400 and thrown failures come back with isError and a recovery hint.
+    async (args) => handleCallApi(args)
   );
 
   // 5. Search Endpoints

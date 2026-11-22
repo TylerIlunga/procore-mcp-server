@@ -1,5 +1,12 @@
 import { procoreApiCall } from "../../api/client.js";
 import type { ApiCallOptions } from "../../api/types.js";
+import {
+  httpErrorResult,
+  localValidationError,
+  thrownErrorResult,
+  unresolvedPlaceholders,
+  type ToolTextResult,
+} from "../error-hints.js";
 
 export async function handleCallApi(args: {
   method: string;
@@ -10,7 +17,7 @@ export async function handleCallApi(args: {
   company_id?: number;
   page?: number;
   per_page?: number;
-}): Promise<string> {
+}): Promise<ToolTextResult> {
   const options: ApiCallOptions = {
     method: args.method,
     path: args.path,
@@ -23,6 +30,13 @@ export async function handleCallApi(args: {
   };
 
   try {
+    const missing = unresolvedPlaceholders(args.path, args.path_params);
+    if (missing.length > 0) {
+      throw localValidationError(
+        `Path ${args.path} has unfilled placeholder(s): ${missing.join(", ")}. ` +
+          `Supply them in path_params, e.g. { "${missing[0]}": "123" }.`
+      );
+    }
     const response = await procoreApiCall(options);
 
     const parts: string[] = [];
@@ -68,9 +82,12 @@ export async function handleCallApi(args: {
       );
     }
 
-    return parts.join("\n");
+    const text = parts.join("\n");
+    if (response.status >= 400) {
+      return httpErrorResult(response.status, response.data, response.notice, text);
+    }
+    return { content: [{ type: "text", text }] };
   } catch (err) {
-    const error = err as Error;
-    return `Error: ${error.message}\n\nSuggestion: Check the endpoint path and parameters. Use procore_get_endpoint_details to verify the correct format.`;
+    return thrownErrorResult(err);
   }
 }
